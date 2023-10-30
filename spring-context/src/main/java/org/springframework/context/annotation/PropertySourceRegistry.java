@@ -57,15 +57,15 @@ class PropertySourceRegistry {
 	 * @throws IOException if loading a property source failed
 	 */
 	void processPropertySource(AnnotationAttributes propertySource) throws IOException {
-		String name = propertySource.getString("name");
+		String name = propertySource.getString("name");// 获取name属性
 		if (!StringUtils.hasLength(name)) {
 			name = null;
 		}
-		String encoding = propertySource.getString("encoding");
+		String encoding = propertySource.getString("encoding");// 获取 encoding 属性
 		if (!StringUtils.hasLength(encoding)) {
 			encoding = null;
 		}
-		String[] locations = propertySource.getStringArray("value");
+		String[] locations = propertySource.getStringArray("value");// 获取 value 属性
 		Assert.isTrue(locations.length > 0, "At least one @PropertySource(value) location is required");
 		boolean ignoreResourceNotFound = propertySource.getBoolean("ignoreResourceNotFound");
 

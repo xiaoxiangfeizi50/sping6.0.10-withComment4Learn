@@ -995,6 +995,17 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	// Implementation of BeanDefinitionRegistry interface
 	//---------------------------------------------------------------------
 
+	/**
+	 * @param beanName the name of the bean instance to register
+	 * @param beanDefinition definition of the bean instance to register
+	 * @throws BeanDefinitionStoreException
+	 *
+	 * =========================将 BeanDefinition 注册到容器====================
+	 *
+	 * DefaultListableBeanFactory 实现了 BeanDefinitionRegistry 接口
+	 *       自然要去实现 BeanDefinitionRegistry 接口的方法，而这里就是去实现
+	 * registerBeanDefinition 这个注册BeanDefinition的方法
+	 */
 	@Override
 	public void registerBeanDefinition(String beanName, BeanDefinition beanDefinition)
 			throws BeanDefinitionStoreException {
@@ -1002,8 +1013,11 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 		Assert.hasText(beanName, "Bean name must not be empty");
 		Assert.notNull(beanDefinition, "BeanDefinition must not be null");
 
+		// AbstractBeanDefinition 接收的
 		if (beanDefinition instanceof AbstractBeanDefinition abd) {
 			try {
+				// 注册前的最后一个校验，这里的检验不同于之前的xml文件校验，主要是对应abstractBeanDefinition属性的methodOverrides校验，
+				// 检验methodOverrides是否与工厂方法并存或者methodoverrides对应的方法根本不存在
 				abd.validate();
 			}
 			catch (BeanDefinitionValidationException ex) {
@@ -1011,9 +1025,14 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 						"Validation of bean definition failed", ex);
 			}
 		}
-		// 先从一级缓存中获取
+		/**
+		 * 注册之前：先判断 beanDefinitionMap 有没有 beanDefinition
+		 */
+		// 重点：先从一级缓存中获取
 		BeanDefinition existingDefinition = this.beanDefinitionMap.get(beanName);
+		// 重复Bean的判断：处理已经注册的beanName情况
 		if (existingDefinition != null) {
+			// 如果对应的beanName已经注册且在配置中配置了bean不允许被覆盖，则抛出异常
 			if (!isAllowBeanDefinitionOverriding()) {
 				throw new BeanDefinitionOverrideException(beanName, beanDefinition, existingDefinition);
 			}
@@ -1039,9 +1058,11 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 							"] with [" + beanDefinition + "]");
 				}
 			}
+			// 有重复的且允许覆盖，就覆盖掉更新为最新的 BeanDefinition 实例
 			this.beanDefinitionMap.put(beanName, beanDefinition);
 		}
-		else {// 是否使用别名
+		else {// 一级缓存没有数据，则走创建流程
+			// 是否使用别名
 			if (isAlias(beanName)) {
 				if (!isAllowBeanDefinitionOverriding()) {
 					String aliasedName = canonicalName(beanName);
@@ -1071,7 +1092,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 				}
 			}
 			else {
-				// 将beanDefinition添加到beanDefinitionMap中
+				// 将 beanDefinition 添加到 beanDefinitionMap 以及 beanDefinitionNames 中
 				System.out.println("------------------注册bean定义：" + beanName);
 				// Still in startup registration phase
 				this.beanDefinitionMap.put(beanName, beanDefinition);
@@ -1082,6 +1103,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 		}
 
 		if (existingDefinition != null || containsSingleton(beanName)) {
+			// 重置所有beanName对应的缓存
 			resetBeanDefinition(beanName);
 		}
 		else if (isConfigurationFrozen()) {

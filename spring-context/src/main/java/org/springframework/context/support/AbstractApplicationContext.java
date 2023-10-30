@@ -585,24 +585,41 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 		// 给容器 Refresh 阶段加锁，防止容器在 Refresh 阶段进行了初始化或者销毁的操作
 		synchronized (this.startupShutdownMonitor) {
 			StartupStep contextRefresh = this.applicationStartup.start("spring.context.refresh");
-
-			//设置容器状态以及启动时间等参数
-
+			// Prepare this context for refreshing.
+			// * 前戏，做容器刷新前的准备工作:
+			// * 1、设置容器的启动时间
+			// * 2、设置活跃状态为true
+			// * 3、设置关闭状态为false
+			// * 4、获取Environment对象，并加载当前系统的属性值到Environment对象中
+			// * 5、准备监听器和事件的集合对象，默认为空的集合
 			prepareRefresh();
+
 			// 注解的容器，自己解耦合自己把自己的系统系统级别的实现@Component@Configuration@Bean@Import，也会注册到容器，用Xml方式容器直接强耦合
 			// 获取一个新的BeanFactory实例，存储容器中所有的bean定义信息，用于后面去使用
+
+			// 1.判断是否已经有BeanFactory实例(IOC)，有则销毁Bean并关闭BeanFactory，然后新建新的DefaultListableBeanFactory
+			//       ignoreDependencyInterface(...Aware)
+			//       设置容器唯一ID
+			//       customizeBeanFactory(beanFactory)  空实现，可以自定义扩展，如设置是否支持循环依赖，是否支持覆盖
+			// 2.loadBeanDefinitions(beanFactory);
 			ConfigurableListableBeanFactory beanFactory = obtainFreshBeanFactory();
 
 			// 对BeanFactory预处理以及必要配置，自动装配一些东西，忽略自动装配一些东西，例如类加载器，注册系统级别的Bean，例如systemEnvironment、systemProperties等
 			prepareBeanFactory(beanFactory);
 
 			try {
+				// Allows post-processing of the bean factory in context subclasses.
 				// 允许自定义执行后置处理器的钩子函数
+				// 子类覆盖方法做额外的处理，此处我们自己一般不做任何扩展工作，但是可以查看web中的代码，是有具体实现的（SpringMVC/SpringBoot）
 				postProcessBeanFactory(beanFactory);
 
 				StartupStep beanPostProcess = this.applicationStartup.start("spring.context.beans.post-process");
-				// 按照优先级调用BeanFactoryPostProcessor bean定义后置处理器（其中也包含系统级别的后置处理器ConfigurationClassPostProcessors、ImportBeanDefinitionRegistrar解析配置类，@Bean、@Import也会在这里处理，包括AOP）
-				// 优先实例化带有后置处理器的Bean定义，AOP就是在这里实例化的，因为AOP需要在实例化Bean的时候进行增强
+
+				// Invoke factory processors registered as beans in the context.
+				// 调用各种beanFactory处理器 会按照优先级调用BeanFactoryPostProcessor
+				// bean定义后置处理器（其中也包含系统级别的后置处理器ConfigurationClassPostProcessors、
+				// 					ImportBeanDefinitionRegistrar解析配置类，@Bean、@Import也会在这里处理）
+				// AOP就是在这里实例化的，因为AOP需要在实例化Bean的时候进行增强？？？？核实一下。
 				invokeBeanFactoryPostProcessors(beanFactory);
 
 				// 按照优先级调用BeanPostProcessor bean后置处理器（其中也包含系统级别的后置处理器AutowiredAnnotationBeanPostProcessor、CommonAnnotationBeanPostProcessor、EventListenerMethodProcessor）
@@ -722,8 +739,13 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	 */
 	protected void prepareBeanFactory(ConfigurableListableBeanFactory beanFactory) {
 		// Tell the internal bean factory to use the context's class loader etc.
+		// 设置beanFactory的classloader为当前context的classloader
 		beanFactory.setBeanClassLoader(getClassLoader());
+		// 设置beanfactory的表达式语言处理器(SpEL表达式)
+		// 类关系： resolver 的属性 paser, parser 的属性 configuration。（SpelExpressionParser 和 SpelParserConfiguration）
 		beanFactory.setBeanExpressionResolver(new StandardBeanExpressionResolver(beanFactory.getBeanClassLoader()));
+		// 为beanFactory增加一个默认的propertyEditor，这个主要是对bean的属性等设置管理的一个工具类
+		// 如：将String"河南省_周口市_项城市_秣陵镇"解析为包括省市县镇的对象。
 		beanFactory.addPropertyEditorRegistrar(new ResourceEditorRegistrar(this, getEnvironment()));
 
 		// 以下接口忽略自动装配
@@ -781,16 +803,36 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	}
 
 	/**
+	 * 实例化并调用所有BFPP。
+	 * 问：此时bean生命周期还没走到createBean()那里，为什么可以执行BFPP的方法？？？
+	 * 答：注意这里BFPP(BDRPP)是提前实例化的：
+	 *     如果是系统的BFPP(BDRPP)  ：通过beanFactory.getBean(beanName)提前实例化，然后调用的内部方法
+	 *     如果是自定义的BFPP(BDRPP)：通过xml注册（走系统相同逻辑）【被IOC管理】，
+	 *                             或者通过addBeanFactoryPostProcessor(new MyBDRPP/MyBFPP)
+	 *                                  后getBeanFactoryPostProcessors()方法获取【因为是自己new的所以不被IOC管理】
+	 *	// 问： invokeBeanDefinitionRegistryPostProcessors() 如何新增新的BeanDefinitionRegistryPostProcessor？？？
+	 * 	// 答： 详见《MCA视频-Spring源码第九章第二节》或《Sping源码案例.md》第八节
 	 * Instantiate and invoke all registered BeanFactoryPostProcessor beans,
 	 * respecting explicit order if given.
 	 * <p>Must be called before singleton instantiation.
 	 */
 	protected void invokeBeanFactoryPostProcessors(ConfigurableListableBeanFactory beanFactory) {
+		// 后置处理器的注册代理（门面-装饰）
 		// 按照顺序执行扩展点的方法
+		// 获取到当前应用程序上下文的BFPPs变量的值，并且实例化调用执行所有已经注册的BFPP
+		// 默认情况下，通过getBeanFactoryPostProcessors()来获取已经注册的BFPP，但是默认是空的，那么问题来了，如果你想扩展，怎么进行扩展工作？
+		// 答：xml定义实现了BFPP的Bean【此方式会被系统后续识别】  或者 通过context.addBeanFactoryPostProcessor()【此处getBFPPs()直接获取】
 		PostProcessorRegistrationDelegate.invokeBeanFactoryPostProcessors(beanFactory, getBeanFactoryPostProcessors());
 
 		// Detect a LoadTimeWeaver and prepare for weaving, if found in the meantime
 		// (e.g. through an @Bean method registered by ConfigurationClassPostProcessor)
+		/**
+		 * LoadTimeWeaverAwareProcessor实现了BPP【BeanPostProcessor】，（和BeanFactoryAware接口）
+		 * 也就是说在所有bean的初始化之前与之后都会分别调用对应的方法postProcessBeforeInitialization与postProcessAfterInitialization，
+		 * 		在LoadTimeWeaverAwareProcessor中的postProcessBeforeInitialization函数中，
+		 * 		因为最开始的if判断注定这个后处理器只对LoadTimeWeaverAware类型的bean起作用，
+		 * 		而纵观所有的bean，实现LoadTimeWeaver接口的类只有AspectJWeavingEnabler。
+		 */
 		if (!NativeDetector.inNativeImage() && beanFactory.getTempClassLoader() == null && beanFactory.containsBean(LOAD_TIME_WEAVER_BEAN_NAME)) {
 			beanFactory.addBeanPostProcessor(new LoadTimeWeaverAwareProcessor(beanFactory));
 			beanFactory.setTempClassLoader(new ContextTypeMatchClassLoader(beanFactory.getBeanClassLoader()));

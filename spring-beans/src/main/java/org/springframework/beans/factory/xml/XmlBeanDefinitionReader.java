@@ -77,6 +77,9 @@ import org.springframework.util.xml.XmlValidationModeDetector;
  * @see org.springframework.context.support.GenericApplicationContext
  */
 public class XmlBeanDefinitionReader extends AbstractBeanDefinitionReader {
+/**
+ * 1.XmlBeanDefinitionReader通过继承自AbstractBeanDefinitionReader中的方法，来使用ResourceLoader将资源文件路径转为对应的Resource文件
+ */
 
 	/**
 	 * Indicates that the validation should be disabled.
@@ -106,6 +109,10 @@ public class XmlBeanDefinitionReader extends AbstractBeanDefinitionReader {
 
 	private boolean namespaceAware = false;
 
+	/**
+	 * 3.通过实现BeanDefinitionDocumentReader接口的DefaultBeanDefinitionDocumentReader来对Document进行解析，
+	 * 并使用BeanDefinitionParserDelegate对Element进行解析
+	 */
 	private Class<? extends BeanDefinitionDocumentReader> documentReaderClass =
 			DefaultBeanDefinitionDocumentReader.class;
 
@@ -118,6 +125,9 @@ public class XmlBeanDefinitionReader extends AbstractBeanDefinitionReader {
 	@Nullable
 	private NamespaceHandlerResolver namespaceHandlerResolver;
 
+	/**
+	 * 2.通过DocumentLoader对resource文件进行转换，将resource文件转为Document文件
+	 */
 	private DocumentLoader documentLoader = new DefaultDocumentLoader();
 
 	@Nullable
@@ -322,7 +332,8 @@ public class XmlBeanDefinitionReader extends AbstractBeanDefinitionReader {
 		if (logger.isTraceEnabled()) {
 			logger.trace("Loading XML bean definitions from " + encodedResource);
 		}
-
+		//ThreadLocal<Set<EncodedResource>>
+		// 通过属性来记录已经加载的资源
 		Set<EncodedResource> currentResources = this.resourcesCurrentlyBeingLoaded.get();
 
 		if (!currentResources.add(encodedResource)) {
@@ -330,6 +341,7 @@ public class XmlBeanDefinitionReader extends AbstractBeanDefinitionReader {
 					"Detected cyclic loading of " + encodedResource + " - check your import definitions!");
 		}
 
+		// 从encodedResource中获取已经封装的Resource对象并再次从Resource中获取其中的inputStream
 		try (InputStream inputStream = encodedResource.getResource().getInputStream()) {
 			InputSource inputSource = new InputSource(inputStream);
 			if (encodedResource.getEncoding() != null) {
@@ -385,9 +397,13 @@ public class XmlBeanDefinitionReader extends AbstractBeanDefinitionReader {
 	 */
 	protected int doLoadBeanDefinitions(InputSource inputSource, Resource resource)
 			throws BeanDefinitionStoreException {
-
+		// Spring源码深度解析<第二版>P32
 		try {
+			// 此处获取xml文件的document对象，这个解析过程是由documentLoader完成的,从String[] -string-Resource[]- resource,最终开始将resource读取成一个document文档，根据文档的节点信息封装成一个个的BeanDefinition对象
+			// 即：2. resource -> document
 			Document doc = doLoadDocument(inputSource, resource);
+			// 3.通过实现BeanDefinitionDocumentReader接口的DefaultBeanDefinitionDocumentReader来对Document进行解析，
+			// 并使用BeanDefinitionParserDelegate对Element进行解析
 			int count = registerBeanDefinitions(doc, resource);
 			if (logger.isDebugEnabled()) {
 				logger.debug("Loaded " + count + " bean definitions from " + resource);
@@ -506,9 +522,18 @@ public class XmlBeanDefinitionReader extends AbstractBeanDefinitionReader {
 	 * @see BeanDefinitionDocumentReader#registerBeanDefinitions
 	 */
 	public int registerBeanDefinitions(Document doc, Resource resource) throws BeanDefinitionStoreException {
+		// 3.通过实现BeanDefinitionDocumentReader接口的DefaultBeanDefinitionDocumentReader来对Document进行解析，
+	    //   并使用BeanDefinitionParserDelegate对Element进行解析
 		BeanDefinitionDocumentReader documentReader = createBeanDefinitionDocumentReader();
+		// 在实例化BeanDefinitionReader的时候会将BeanDefinitionRegistry传入，默认使用继承自DefaultListableBeanFactory
+		// 记录统计前BeanDefinition的加载个数
 		int countBefore = getRegistry().getBeanDefinitionCount();
+		// 重点·：***
+		//       	4.加载以及注册bean（）
+		//       	创建XmlReaderContext，用来解析spring.handlers和spring.schemas
+		//       ***
 		documentReader.registerBeanDefinitions(doc, createReaderContext(resource));
+		// 记录本次加载的BeanDefinition个数
 		return getRegistry().getBeanDefinitionCount() - countBefore;
 	}
 
@@ -526,6 +551,7 @@ public class XmlBeanDefinitionReader extends AbstractBeanDefinitionReader {
 	 * Create the {@link XmlReaderContext} to pass over to the document reader.
 	 */
 	public XmlReaderContext createReaderContext(Resource resource) {
+		// 注意getNamespaceHandlerResolver(),解析了spring.handlers
 		return new XmlReaderContext(resource, this.problemReporter, this.eventListener,
 				this.sourceExtractor, this, getNamespaceHandlerResolver());
 	}

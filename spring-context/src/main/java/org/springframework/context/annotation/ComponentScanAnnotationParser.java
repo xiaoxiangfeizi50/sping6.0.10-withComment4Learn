@@ -66,14 +66,17 @@ class ComponentScanAnnotationParser {
 
 
 	public Set<BeanDefinitionHolder> parse(AnnotationAttributes componentScan, String declaringClass) {
+		// 创建对应的扫描类
 		ClassPathBeanDefinitionScanner scanner = new ClassPathBeanDefinitionScanner(this.registry,
 				componentScan.getBoolean("useDefaultFilters"), this.environment, this.resourceLoader);
 		// 还是判断bean名称是否自定义
+		// 获取@ComponentScan的参数，并进行参数的设置工作
 		Class<? extends BeanNameGenerator> generatorClass = componentScan.getClass("nameGenerator");
 		boolean useInheritedGenerator = (BeanNameGenerator.class == generatorClass);
 		scanner.setBeanNameGenerator(useInheritedGenerator ? this.beanNameGenerator :
 				BeanUtils.instantiateClass(generatorClass));
 
+		// 获取scopedProxy属性
 		ScopedProxyMode scopedProxyMode = componentScan.getEnum("scopedProxy");
 		if (scopedProxyMode != ScopedProxyMode.DEFAULT) {
 			scanner.setScopedProxyMode(scopedProxyMode);
@@ -83,6 +86,7 @@ class ComponentScanAnnotationParser {
 			scanner.setScopeMetadataResolver(BeanUtils.instantiateClass(resolverClass));
 		}
 
+		// 获取resourcePattern属性
 		scanner.setResourcePattern(componentScan.getString("resourcePattern"));
 
 		// 处理包含包includeFilters以及排除包excludeFilters
@@ -101,18 +105,21 @@ class ComponentScanAnnotationParser {
 			}
 		}
 
+		// 获取lazyInit属性
 		boolean lazyInit = componentScan.getBoolean("lazyInit");
 		if (lazyInit) {
 			scanner.getBeanDefinitionDefaults().setLazyInit(true);
 		}
 
 		Set<String> basePackages = new LinkedHashSet<>();
+		// 获取basePackages属性
 		String[] basePackagesArray = componentScan.getStringArray("basePackages");
 		for (String pkg : basePackagesArray) {
 			String[] tokenized = StringUtils.tokenizeToStringArray(this.environment.resolvePlaceholders(pkg),
 					ConfigurableApplicationContext.CONFIG_LOCATION_DELIMITERS);
 			Collections.addAll(basePackages, tokenized);
 		}
+		// 获取basePackageClasses属性
 		// 可以指定多个类是这几个类同级或者下级的都可以被扫描到，spring比较推荐这种方法
 		// 这个方法idea可以检查，包名容易出错
 		for (Class<?> clazz : componentScan.getClassArray("basePackageClasses")) {
@@ -129,7 +136,10 @@ class ComponentScanAnnotationParser {
 				return declaringClass.equals(className);
 			}
 		});
-		// 扫描
+
+		// 上面是对@componentScan的属性值的处理
+		// 到此为止，已经完成对@ComponentScan的处理，然后需要对@ComponentScan指定的包下的类进行扫描解析【doScan】
+		// 开始执行扫描，最终的扫描器是ClassPathBeanDefinitionScanner
 		return scanner.doScan(StringUtils.toStringArray(basePackages));
 	}
 

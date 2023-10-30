@@ -72,7 +72,7 @@ public abstract class NamespaceHandlerSupport implements NamespaceHandler {
 	public BeanDefinition parse(Element element, ParserContext parserContext) {
 		BeanDefinitionParser parser = findParserForElement(element, parserContext);
 		return (parser != null ? parser.parse(element, parserContext) : null);
-	}
+	} 
 
 	/**
 	 * Locates the {@link BeanDefinitionParser} from the register implementations using

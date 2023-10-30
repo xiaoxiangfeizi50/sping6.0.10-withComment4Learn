@@ -127,9 +127,13 @@ public abstract class AbstractRefreshableApplicationContext extends AbstractAppl
 		try {
 			// 创建DefaultListableBeanFactory实例（IOC容器）
 			DefaultListableBeanFactory beanFactory = createBeanFactory();
+			// 设置容器唯一ID，（注意ID生成的时间）
 			beanFactory.setSerializationId(getId());
+			// 可以重写自定义allowBeanDefinitionOverriding以及allowCircularReferences
 			customizeBeanFactory(beanFactory);
 			// 加载bean定义信息到beanDefinitions
+			// 负责将资源文件如xml解析为BeanDefinition。（xml路径-> resource -> document -> beanDefinition）
+			// 支持XML自定义标签的解析
 			loadBeanDefinitions(beanFactory);
 			this.beanFactory = beanFactory;
 		}

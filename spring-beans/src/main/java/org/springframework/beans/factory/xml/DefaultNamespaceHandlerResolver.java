@@ -89,6 +89,7 @@ public class DefaultNamespaceHandlerResolver implements NamespaceHandlerResolver
 	 * @see #DEFAULT_HANDLER_MAPPINGS_LOCATION
 	 */
 	public DefaultNamespaceHandlerResolver(@Nullable ClassLoader classLoader) {
+		// 指定路径： META-INF/spring.handlers，debug的时候通过idea调用toString方法来调用getHandlerMappings()方法获取handlers映射
 		this(classLoader, DEFAULT_HANDLER_MAPPINGS_LOCATION);
 	}
 
@@ -115,24 +116,32 @@ public class DefaultNamespaceHandlerResolver implements NamespaceHandlerResolver
 	@Override
 	@Nullable
 	public NamespaceHandler resolve(String namespaceUri) {
+		// 非debug模式，这里调用getHandlerMappings()方法
 		Map<String, Object> handlerMappings = getHandlerMappings();
+		// 根据命名空间找对应信息
 		Object handlerOrClassName = handlerMappings.get(namespaceUri);
 		if (handlerOrClassName == null) {
 			return null;
 		}
 		else if (handlerOrClassName instanceof NamespaceHandler namespaceHandler) {
+			// 如果已经做过解析，直接从缓存中读取
 			return namespaceHandler;
 		}
 		else {
+			// 没有做过解析，则返回的是类路径
 			String className = (String) handlerOrClassName;
 			try {
+				// 通过反射将类路径转化为类
 				Class<?> handlerClass = ClassUtils.forName(className, this.classLoader);
 				if (!NamespaceHandler.class.isAssignableFrom(handlerClass)) {
 					throw new FatalBeanException("Class [" + className + "] for namespace [" + namespaceUri +
 							"] does not implement the [" + NamespaceHandler.class.getName() + "] interface");
 				}
+				// 实例化类
 				NamespaceHandler namespaceHandler = (NamespaceHandler) BeanUtils.instantiateClass(handlerClass);
+				// 重点：扩展点：** 调用自定义的namespaceHandler的初始化方法 **
 				namespaceHandler.init();
+				// 把结果记录在缓存中
 				handlerMappings.put(namespaceUri, namespaceHandler);
 				return namespaceHandler;
 			}

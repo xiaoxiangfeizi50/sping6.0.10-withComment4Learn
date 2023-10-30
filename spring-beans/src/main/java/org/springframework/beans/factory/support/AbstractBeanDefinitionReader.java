@@ -216,7 +216,12 @@ public abstract class AbstractBeanDefinitionReader implements BeanDefinitionRead
 		if (resourceLoader instanceof ResourcePatternResolver resourcePatternResolver) {
 			// Resource pattern matching available.
 			try {
+				// 见Spring源码书P26类图以及解释（@see XmlBeanDefinitionReader 类）
+				// 调用DefaultResourceLoader的getResource完成具体的Resouce资源定位
+				// 1.通过继承自AbstractBeanDefinitionReader中的方法，来使用ResourceLoader将资源文件路径转为对应的Resource文件
 				Resource[] resources = resourcePatternResolver.getResources(location);
+				// do方法在这里面
+				// 2.通过DocumentLoader对resource文件进行转换，将resource文件转为Document文件
 				int count = loadBeanDefinitions(resources);
 				if (actualResources != null) {
 					Collections.addAll(actualResources, resources);
