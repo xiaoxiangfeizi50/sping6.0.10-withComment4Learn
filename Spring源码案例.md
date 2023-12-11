@@ -694,6 +694,14 @@ public class StudentConverter implements Converter<String,Student> {
     }
 }
 ```
+    <bean id="studentConverter" class="com.mashibing.selfConverter.StudentConverter"></bean>
+    <bean id ="conversionService" class="org.springframework.context.support.ConversionServiceFactoryBean">
+        <property name="converters">
+            <set>
+                <ref bean="studentConverter"></ref>
+            </set>
+        </property>
+    </bean>
 
 Test.java
 

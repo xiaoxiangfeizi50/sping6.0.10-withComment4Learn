@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd">
+	<!-- 1.bean的类型为PersonStaticFactory ， static工厂方法，可以直接在标签中定义factory-method属性 -->
+    <bean id="person" class="org.springframework.axpltest.testFactoryMethod.PersonStaticFactory" factory-method="getPerson">
+        <!--constructor-arg：可以为方法指定参数-->
+        <constructor-arg value="123"></constructor-arg>
+    </bean>
+
+	<!-- 2.bean的类型为PersonInstanceFactory，实例工厂方法，需要在Person类型的bean定义标签中声明factory-bean和factory-method -->
+	<bean id="personInstanceFactory" class="org.springframework.axpltest.testFactoryMethod.PersonInstanceFactory"></bean>
+	<bean id="person2" class="org.springframework.axpltest.testFactoryMethod.Person"
+		  		factory-bean="personInstanceFactory" factory-method="getPerson">
+        <constructor-arg value="wangwu"></constructor-arg>
+    </bean>
+
+</beans>

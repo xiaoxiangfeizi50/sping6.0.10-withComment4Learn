@@ -955,33 +955,50 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			logger.trace("Pre-instantiating singletons in " + this);
 		}
 
-		// 获取所有Bean定义
+		// Iterate over a copy to allow for init methods which in turn register new bean definitions.
+		// While this may not be part of the regular factory bootstrap, it does otherwise work fine.
+		// 将所有BeanDefinition的名字创建一个集合
+		// 问：beanDefinitionNames哪里设置的？
+		// 答：在invokeBFPP里面Scanner.doScan() 执行扫描的时候将被扫描到的非懒加载单例进行实例化到一级缓存，调用DefaultListableBeanFactory.registerBeanDefinition()【就是当前类文件下面的一个方法】的时候：
+		//      里面首先判断一级缓存是否存在，然后处理，详细见：
+		// 		https://blog.csdn.net/StrawberryMuMu/article/details/98217116
 		List<String> beanNames = new ArrayList<>(this.beanDefinitionNames);
 
-		// 遍历所有的bean定义
+		// Trigger initialization of all non-lazy singleton beans...
+		// 触发所有非延迟加载单例bean的初始化，遍历集合的对象
 		for (String beanName : beanNames) {
-			// 获取合并后的bean定义，转行为统一的RootBeanDefinition类型，方便后续的判断
+			// 合并父类BeanDefinition，转为统一的RootBeanDefinition类型，方便后续的判断
  			RootBeanDefinition bd = getMergedLocalBeanDefinition(beanName);
-			// 判断是否符合生产标准，不是抽象类，是单例，不是懒加载
+			// 条件判断：非抽象，单例，非懒加载
 			if (!bd.isAbstract() && bd.isSingleton() && !bd.isLazyInit()) {
-				// 是不是FactoryBean（注意了，不是BeanFactory），当一个bean实现了FactoryBean时需要重写扩展点方法（getObject，类型就转换了，但是也可以通过$BeanName获取老的类型，mybatis的动态代理就是这个实现方式）
+				// 判断是否实现了FactoryBean接口（注意了，不是BeanFactory）：
+				//     当一个bean实现了FactoryBean时需要重写扩展点方法
+				//     （重写getObject()方法返回new Dog()，获取Dog Bean使用getBean(factoryBeanName)，但是也可以通过$factoryBeanName获取FactoryBean，mybatis的动态代理就是这个实现方式）
 				if (isFactoryBean(beanName)) {
 					System.out.println(beanName + "实现了FactoryBean");
+					// 根据&+beanName来获取具体的对象
 					Object bean = getBean(FACTORY_BEAN_PREFIX + beanName);
+					// 判断这个FactoryBean是否希望立即初始化
+					// 如果希望急切的初始化，则通过beanName获取bean实例
 					if (bean instanceof SmartFactoryBean<?> smartFactoryBean && smartFactoryBean.isEagerInit()) {
 						getBean(beanName);
 					}
 				}
 				else {
+					// 如果beanName对应的bean不是FactoryBean，只是普通的bean，通过beanName获取bean实例
 					getBean(beanName); // 调用getBean
 				}
 			}
 		}
 
+		// Trigger post-initialization callback for all applicable beans...
 		// 遍历所有的 Bean 名称，获取实例，判断是否实现了 SmartInitializingSingleton 接口，实现的话会调用它的 afterSingletonsInstantiated() 方法来触发后初始化回调
 		for (String beanName : beanNames) {
+			// 获取beanName对应的bean实例
 			Object singletonInstance = getSingleton(beanName);
+			// 判断singletonInstance是否实现了SmartInitializingSingleton接口
 			if (singletonInstance instanceof SmartInitializingSingleton smartSingleton) {
+				// 触发SmartInitializingSingleton实现类的afterSingletonsInstantiated方法
 				StartupStep smartInitialize = this.getApplicationStartup().start("spring.beans.smart-initialize")
 						.tag("beanName", beanName);
 				smartSingleton.afterSingletonsInstantiated();

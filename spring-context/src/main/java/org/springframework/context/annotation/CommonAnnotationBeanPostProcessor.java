@@ -67,6 +67,8 @@ import org.springframework.util.StringUtils;
 import org.springframework.util.StringValueResolver;
 
 /**
+ * 负责解析@Resource、@PostConstruct，@PreDestroy，@EJB三个注解，这三个注解都是定义再javax.*包下的注解，属于java中的注解
+ *
  * {@link org.springframework.beans.factory.config.BeanPostProcessor} implementation
  * that supports common Java annotations out of the box, in particular the common
  * annotations in the {@code jakarta.annotation} package. These common Java
@@ -124,6 +126,9 @@ import org.springframework.util.StringValueResolver;
  * @see #setResourceFactory
  * @see org.springframework.beans.factory.annotation.InitDestroyAnnotationBeanPostProcessor
  * @see org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor
+ *
+ * 负责解析@Resource、@WebServiceRef、@EJB三个注解，这三个注解都是定义再javax.*包下的注解，属于java中的注解
+ *
  */
 @SuppressWarnings("serial")
 public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBeanPostProcessor
@@ -139,10 +144,12 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 	private static final Class<? extends Annotation> ejbClass;
 
 	static {
+		// 添加@Resource注解
 		resourceAnnotationTypes.add(Resource.class);
 
 		ejbClass = loadAnnotationType("jakarta.ejb.EJB");
 		if (ejbClass != null) {
+			// 添加@EJB注解
 			resourceAnnotationTypes.add(ejbClass);
 		}
 	}
@@ -170,6 +177,8 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 
 
 	/**
+	 *  构造方法，设置@PostConstruct和@PreDestory注解
+	 *
 	 * Create a new CommonAnnotationBeanPostProcessor,
 	 * with the init and destroy annotation types set to
 	 * {@link jakarta.annotation.PostConstruct} and {@link jakarta.annotation.PreDestroy},
@@ -273,8 +282,13 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 
 	@Override
 	public void postProcessMergedBeanDefinition(RootBeanDefinition beanDefinition, Class<?> beanType, String beanName) {
+		// 处理@PostConstruct和@PreDestroy注解
+		/** 处理@PostConstruct和@PreDestroy注解 */
 		super.postProcessMergedBeanDefinition(beanDefinition, beanType, beanName);
+		//找出beanType所有被@Resource标记的字段和方法封装到InjectionMetadata中
+		/** 这是处理 @Resource 的 */
 		InjectionMetadata metadata = findResourceMetadata(beanName, beanType, null);
+		// 将@resource回写到BD
 		metadata.checkConfigMembers(beanDefinition);
 	}
 
@@ -283,16 +297,35 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 		this.injectionMetadataCache.remove(beanName);
 	}
 
+	/**
+	 * 此方法的返回值为null，即不会在bean实例化之前产生一个代理对象
+	 * @param beanClass the class of the bean to be instantiated
+	 * @param beanName the name of the bean
+	 * @return
+	 */
 	@Override
 	public Object postProcessBeforeInstantiation(Class<?> beanClass, String beanName) {
 		return null;
 	}
 
+	/**
+	 * 此方法的返回值为true，也就是说该类不会阻止属性的注入
+	 * @param bean the bean instance created, with properties not having been set yet
+	 * @param beanName the name of the bean
+	 * @return
+	 */
 	@Override
 	public boolean postProcessAfterInstantiation(Object bean, String beanName) {
 		return true;
 	}
 
+	/**
+	 * 处理注入注解元数据
+	 * @param pvs the property values that the factory is about to apply (never {@code null})
+	 * @param bean the bean instance created, but whose properties have not yet been set
+	 * @param beanName the name of the bean
+	 * @return
+	 */
 	@Override
 	public PropertyValues postProcessProperties(PropertyValues pvs, Object bean, String beanName) {
 		InjectionMetadata metadata = findResourceMetadata(beanName, bean.getClass(), pvs);
@@ -306,10 +339,19 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 	}
 
 
+	/**
+	 * 解析@Resource注解
+	 * @param beanName
+	 * @param clazz
+	 * @param pvs
+	 * @return
+	 */
 	private InjectionMetadata findResourceMetadata(String beanName, Class<?> clazz, @Nullable PropertyValues pvs) {
 		// Fall back to class name as cache key, for backwards compatibility with custom callers.
+		// 获取对应的bean名称作为缓存key
 		String cacheKey = (StringUtils.hasLength(beanName) ? beanName : clazz.getName());
 		// Quick check on the concurrent map first, with minimal locking.
+		// 从缓存中获取注入元数据对象
 		InjectionMetadata metadata = this.injectionMetadataCache.get(cacheKey);
 		if (InjectionMetadata.needsRefresh(metadata, clazz)) {
 			synchronized (this.injectionMetadataCache) {
@@ -318,6 +360,7 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 					if (metadata != null) {
 						metadata.clear(pvs);
 					}
+					// 将返回的metadata对象放入injectionMetadataCache缓存中，缓存key为beanName，供后续方法从缓存中取出
 					metadata = buildResourceMetadata(clazz);
 					this.injectionMetadataCache.put(cacheKey, metadata);
 				}
@@ -327,16 +370,19 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 	}
 
 	private InjectionMetadata buildResourceMetadata(Class<?> clazz) {
+		// 判断当前clazz是否是候选class（annotationName.startsWith("java.")）
 		if (!AnnotationUtils.isCandidateClass(clazz, resourceAnnotationTypes)) {
 			return InjectionMetadata.EMPTY;
 		}
 
+		// 创建InjectedElement集合对象
 		List<InjectionMetadata.InjectedElement> elements = new ArrayList<>();
 		Class<?> targetClass = clazz;
 
 		do {
 			final List<InjectionMetadata.InjectedElement> currElements = new ArrayList<>();
 
+			// 查询是否有ejb,Resource的属性注解，但是不支持静态属性
 			ReflectionUtils.doWithLocalFields(targetClass, field -> {
 				if (ejbClass != null && field.isAnnotationPresent(ejbClass)) {
 					if (Modifier.isStatic(field.getModifiers())) {
@@ -345,20 +391,26 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 					currElements.add(new EjbRefElement(field, field, null));
 				}
 				else if (field.isAnnotationPresent(Resource.class)) {
+					//注意静态字段不支持
 					if (Modifier.isStatic(field.getModifiers())) {
 						throw new IllegalStateException("@Resource annotation is not supported on static fields");
 					}
+					//如果不想注入某一类型对象 可以将其加入ignoredResourceTypes中
 					if (!this.ignoredResourceTypes.contains(field.getType().getName())) {
+						//字段会封装到ResourceElement
 						currElements.add(new ResourceElement(field, field, null));
 					}
 				}
 			});
 
+			// 处理方法
 			ReflectionUtils.doWithLocalMethods(targetClass, method -> {
+				//找出我们在代码中定义的方法而非编译器为我们生成的方法
 				Method bridgedMethod = BridgeMethodResolver.findBridgedMethod(method);
 				if (!BridgeMethodResolver.isVisibilityBridgeMethodPair(method, bridgedMethod)) {
 					return;
 				}
+				//如果重写了父类的方法，则使用子类的
 				if (method.equals(ClassUtils.getMostSpecificMethod(method, clazz))) {
 					if (ejbClass != null && bridgedMethod.isAnnotationPresent(ejbClass)) {
 						if (Modifier.isStatic(method.getModifiers())) {
@@ -371,6 +423,7 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 						currElements.add(new EjbRefElement(method, bridgedMethod, pd));
 					}
 					else if (bridgedMethod.isAnnotationPresent(Resource.class)) {
+						// 不支持静态方法
 						if (Modifier.isStatic(method.getModifiers())) {
 							throw new IllegalStateException("@Resource annotation is not supported on static methods");
 						}
@@ -423,6 +476,7 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 			}
 		};
 
+		// 代理对象工厂
 		ProxyFactory pf = new ProxyFactory();
 		pf.setTargetSource(ts);
 		if (element.lookupType.isInterface()) {
@@ -478,14 +532,19 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 	 */
 	protected Object autowireResource(BeanFactory factory, LookupElement element, @Nullable String requestingBeanName)
 			throws NoSuchBeanDefinitionException {
-
+		// 自动装配的对象
 		Object resource;
+		// 自动装配的名字
 		Set<String> autowiredBeanNames;
+		// 依赖的属性名
 		String name = element.name;
 
 		if (factory instanceof AutowireCapableBeanFactory autowireCapableBeanFactory) {
+			// 创建依赖描述
 			DependencyDescriptor descriptor = element.getDependencyDescriptor();
 			if (this.fallbackToDefaultTypeMatch && element.isDefaultName && !factory.containsBean(name)) {
+				//如果容器中还没有此bean，则会使用resolveDependency()方法将符合bean type的bean definetion调用一次getBean()
+				// 从这些bean选出符合requestingBeanName的bean
 				autowiredBeanNames = new LinkedHashSet<>();
 				resource = autowireCapableBeanFactory.resolveDependency(descriptor, requestingBeanName, autowiredBeanNames, null);
 				if (resource == null) {
@@ -493,6 +552,7 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 				}
 			}
 			else {
+				//如果容器中有此bean则取出这个bean对象作为属性值
 				resource = autowireCapableBeanFactory.resolveBeanByName(name, descriptor);
 				autowiredBeanNames = Collections.singleton(name);
 			}
@@ -505,6 +565,7 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 		if (factory instanceof ConfigurableBeanFactory configurableBeanFactory) {
 			for (String autowiredBeanName : autowiredBeanNames) {
 				if (requestingBeanName != null && configurableBeanFactory.containsBean(autowiredBeanName)) {
+					//注册依赖关系
 					configurableBeanFactory.registerDependentBean(autowiredBeanName, requestingBeanName);
 				}
 			}
@@ -589,15 +650,19 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 			Class<?> resourceType = resource.type();
 			this.isDefaultName = !StringUtils.hasLength(resourceName);
 			if (this.isDefaultName) {
+				// 如果没有设置@Resource name属性就用字段名称作为bean name
 				resourceName = this.member.getName();
+				// 如果member是setter方法，则取setXXX的XXX部分为bean name
 				if (this.member instanceof Method && resourceName.startsWith("set") && resourceName.length() > 3) {
 					resourceName = StringUtils.uncapitalizeAsProperty(resourceName.substring(3));
 				}
 			}
 			else if (embeddedValueResolver != null) {
+				// 如果设置了@Resource name的属性，则使用EmbeddedValueResolver对象先做一次SpringEL解析得到真正的bean name
 				resourceName = embeddedValueResolver.resolveStringValue(resourceName);
 			}
 			if (Object.class != resourceType) {
+				// 确保字段或setter方法类型与resourceType一致
 				checkResourceType(resourceType);
 			}
 			else {
@@ -607,13 +672,22 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 			this.name = (resourceName != null ? resourceName : "");
 			this.lookupType = resourceType;
 			String lookupValue = resource.lookup();
+			// 如果使用jndi查找名字
 			this.mappedName = (StringUtils.hasLength(lookupValue) ? lookupValue : resource.mappedName());
 			Lazy lazy = ae.getAnnotation(Lazy.class);
+			// 是否延迟注入
 			this.lazyLookup = (lazy != null && lazy.value());
 		}
 
+		/**
+		 * 首先判断注释元数据有没有@Lazy注解，有的话就创建一个代理类，内部是用AOP代理工厂做的
+		 * @param target
+		 * @param requestingBeanName
+		 * @return
+		 */
 		@Override
 		protected Object getResourceToInject(Object target, @Nullable String requestingBeanName) {
+			// 如果懒加载则使用一个代理对象
 			return (this.lazyLookup ? buildLazyResourceProxy(this, requestingBeanName) :
 					getResource(this, requestingBeanName));
 		}

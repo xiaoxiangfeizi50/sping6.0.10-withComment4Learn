@@ -42,6 +42,9 @@ import org.springframework.util.ClassUtils;
 import org.springframework.util.ObjectUtils;
 
 /**
+ *  AbstractApplicationEventMulticaster是ApplicationEventMulticaster接口的抽象实现，提供基本的监听器注册工具方法（注册和移除监听器）
+ *  默认情况下不允许同一个监听器有多个实例，因为该类会将监听器保存在ListenerRetriever集合类的set集合中
+ *
  * Abstract implementation of the {@link ApplicationEventMulticaster} interface,
  * providing the basic listener registration facility.
  *
@@ -64,13 +67,17 @@ import org.springframework.util.ObjectUtils;
 public abstract class AbstractApplicationEventMulticaster
 		implements ApplicationEventMulticaster, BeanClassLoaderAware, BeanFactoryAware {
 
+	// 创建监听器助手类，用于存放应用程序的监听器集合，参数是否是预过滤监听器为false
 	private final DefaultListenerRetriever defaultRetriever = new DefaultListenerRetriever();
 
+	// ListenerCacheKey是基于事件类型和源类型的类作为key用来存储监听器助手defaultRetriever
 	final Map<ListenerCacheKey, CachedListenerRetriever> retrieverCache = new ConcurrentHashMap<>(64);
 
+	// 类加载器
 	@Nullable
 	private ClassLoader beanClassLoader;
 
+	// IOC容器工厂类
 	@Nullable
 	private ConfigurableBeanFactory beanFactory;
 

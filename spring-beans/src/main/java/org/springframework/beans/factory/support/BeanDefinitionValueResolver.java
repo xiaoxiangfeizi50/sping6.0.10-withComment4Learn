@@ -48,6 +48,8 @@ import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
 /**
+ * 在bean工厂实现中使用Helper类，它将beanDefinition对象中包含的值解析为应用于目标bean实例的实际值
+ *
  * Helper class for use in bean factory implementations,
  * resolving values contained in bean definition objects
  * into the actual values applied to the target bean instance.
@@ -64,16 +66,22 @@ import org.springframework.util.StringUtils;
  */
 public class BeanDefinitionValueResolver {
 
+	// 当前bean工厂
 	private final AbstractAutowireCapableBeanFactory beanFactory;
 
+	// 要使用的bean名称
 	private final String beanName;
 
+	// beanName对应的BeanDefinition
 	private final BeanDefinition beanDefinition;
 
+	// 用于解析TypeStringValues的TypeConverter
 	private final TypeConverter typeConverter;
 
 
 	/**
+	 * 为给定BeanFactory和BeanDefinition创建一个BeanDefinitionValueResolver实例
+	 *
 	 * Create a BeanDefinitionValueResolver for the given BeanFactory and BeanDefinition,
 	 * using the given {@link TypeConverter}.
 	 * @param beanFactory the BeanFactory to resolve against
@@ -131,9 +139,14 @@ public class BeanDefinitionValueResolver {
 	public Object resolveValueIfNecessary(Object argName, @Nullable Object value) {
 		// We must check each value to see whether it requires a runtime reference
 		// to another bean to be resolved.
+		// 我们必需检查每个值，以查看它是否需要对另一个bean的运行时引用才能解决
+		// RuntimeBeanReference:当属性值对象是工厂中另一个bean的引用时，使用不可变的占位符类，在运行时进行解析
+
+		// 如果values是RuntimeBeanReference实例
 		if (value instanceof RuntimeBeanReference ref) {
 			return resolveReference(argName, ref);
 		}
+		// TODO 加注释
 		else if (value instanceof RuntimeBeanNameReference ref) {
 			String refName = ref.getBeanName();
 			refName = String.valueOf(doEvaluate(refName));

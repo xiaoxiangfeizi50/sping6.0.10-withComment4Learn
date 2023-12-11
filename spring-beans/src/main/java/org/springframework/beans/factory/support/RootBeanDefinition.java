@@ -68,7 +68,10 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 	@Nullable
 	private AnnotatedElement qualifiedElement;
 
-	/** Determines if the definition needs to be re-merged. */
+	/**
+	 * 判断beandefinition是否需要重新合并
+	 * Determines if the definition needs to be re-merged.
+	 * */
 	volatile boolean stale;
 
 	boolean allowCaching = true;
@@ -119,7 +122,11 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 	/** Common lock for the two post-processing fields below. */
 	final Object postProcessingLock = new Object();
 
-	/** Package-visible field that indicates MergedBeanDefinitionPostProcessor having been applied. */
+	/**
+	 * 判断当前bean对象是否实现了MergedBeanDefinitionPostProcessor接口
+	 *
+	 * Package-visible field that indicates MergedBeanDefinitionPostProcessor having been applied.
+	 * */
 	boolean postProcessed = false;
 
 	/** Package-visible field that indicates a before-instantiation post-processor having kicked in. */
@@ -380,6 +387,8 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 	}
 
 	/**
+	 * 确定首选构造函数用作默认的构造器
+	 *
 	 * Determine preferred constructors to use for default construction, if any.
 	 * Constructor arguments will be autowired if necessary.
 	 * @return one or more preferred constructors, or {@code null} if none
