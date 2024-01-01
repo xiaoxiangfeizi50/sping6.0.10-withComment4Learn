@@ -183,6 +183,7 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 					}
 					else {
 						//重点： 自定义标签的处理（如：<tx:annotation-driven/>,也可以自定义如<xpl:aaa/>）
+						// 获取命名空间，根据命名空间找到找到自定义的NamespaceHandler处理类，然后调用自定义的NamespaceHandler进行解析
 						delegate.parseCustomElement(ele);
 					}
 				}

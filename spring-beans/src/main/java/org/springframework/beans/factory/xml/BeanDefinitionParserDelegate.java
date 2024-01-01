@@ -1383,8 +1383,20 @@ public class BeanDefinitionParserDelegate {
 		if (namespaceUri == null) {
 			return null;
 		}
-		// 根据命名空间，找到对应的NamespaceHandler,readerContext在前面XmlBeanDefinitonReader类的
-		// documentReader.registerBeanDefinitions(doc, createReaderContext(resource));语句中创建，
+		// 根据命名空间，找到对应的NamespaceHandler
+		/** 定义了一个顶层接口 NamespaceHandler，定义了三个方法，其中init()负责定义自定义顶层标签由哪些类解析，
+		 *     有一个唯一实现类--抽象类NamespaceHandlerSupport，该抽象类又有实现类15个，命名为XXXNamespaceHandler，如 AopNamespaceHandler，MvcNamespaceHandler
+		 *     在每个模块的META-INF/spring.handlers文件里面会指定加载的是哪个NamespaceHandler。如AopNamespaceHandler的init()方法里面有
+		 *         registerBeanDefinitionParser("config", new ConfigBeanDefinitionParser());定义了<aop:config/>由ConfigBeanDefinitionParser解析
+		 *
+		 * 有一个实现类 NamespaceHandlerSupport,也有实现类如AopNamespaceHandler，MvcNamespaceHandler，AnnotationNamespaceHandler
+		 * resolve()中会根据xml中beans的http:xxxs 来决定引入哪些NamespaceHandler.如：http://www.springframework.org/schema/aop 会解析<aop:xxx/>
+		 * 然后根据spring.handler文件配置的AopNamespaceHandler的init()方法，确定使用哪个类解析。
+		 * 这也是自己定义标签的要点。
+		 *
+		 * */
+		// resolve()中会根据xml中beans的http:xxxs 来决定引入哪些NamespaceHandler.如：http://www.springframework.org/schema/aop/spring-aop.xsd
+		// readerContext在前面XmlBeanDefinitonReader类的documentReader.registerBeanDefinitions(doc, createReaderContext(resource))语句中创建，
 		// 其中有idea默认调用的toString方法来调用getHandlerMappings()方法获取handlers映射
 		// 在非debug模式情况下，getHandlerMappings()方法由这里的resolve()方法调用。
 		NamespaceHandler handler = this.readerContext.getNamespaceHandlerResolver().resolve(namespaceUri);
@@ -1392,7 +1404,8 @@ public class BeanDefinitionParserDelegate {
 			error("Unable to locate Spring NamespaceHandler for XML schema namespace [" + namespaceUri + "]", ele);
 			return null;
 		}
-		// 调用自定义的NamespaceHandler进行解析
+		// 调用自定义的NamespaceHandler进行解析，
+		// 此处handler为NamespaceHandlerSupport，在parse()里面会根据<aop:xxx>找到真正的解析类,如<aop:config/>使用ConfigBeanDefinitionParser
 		return handler.parse(ele, new ParserContext(this.readerContext, this, containingBd));
 	}
 

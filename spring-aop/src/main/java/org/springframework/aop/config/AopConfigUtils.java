@@ -30,6 +30,8 @@ import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
+ *  * AOP配置工具类,主要是向Spring容器中注入可以生成Advisor和创建代理对象的bean
+ *
  * Utility class for handling registration of AOP auto-proxy creators.
  *
  * <p>Only a single auto-proxy creator should be registered yet multiple concrete
@@ -56,6 +58,7 @@ public abstract class AopConfigUtils {
 	 */
 	private static final List<Class<?>> APC_PRIORITY_LIST = new ArrayList<>(3);
 
+	// 初始化三个创建器
 	static {
 		// Set up the escalation list...
 		APC_PRIORITY_LIST.add(InfrastructureAdvisorAutoProxyCreator.class);
@@ -119,6 +122,7 @@ public abstract class AopConfigUtils {
 			Class<?> cls, BeanDefinitionRegistry registry, @Nullable Object source) {
 
 		Assert.notNull(registry, "BeanDefinitionRegistry must not be null");
+		// 如果已经存在了自动代理创建器且存在的自动代理创建器与现在不一致，那么需要根据优先级来判断到底需要使用哪个
 		// 判断AUTO_PROXY_CREATOR_BEAN_NAME是否已经注册bean定义，跟AOP有关的bean定义只能有一个，例如我又开启了AOP又开启了事务，会进行替换
 		if (registry.containsBeanDefinition(AUTO_PROXY_CREATOR_BEAN_NAME)) {
 			BeanDefinition apcDefinition = registry.getBeanDefinition(AUTO_PROXY_CREATOR_BEAN_NAME);
@@ -126,9 +130,11 @@ public abstract class AopConfigUtils {
 				int currentPriority = findPriorityForClass(apcDefinition.getBeanClassName());
 				int requiredPriority = findPriorityForClass(cls);
 				if (currentPriority < requiredPriority) {
+					// 改变bean所对应的className的属性
 					apcDefinition.setBeanClassName(cls.getName());
 				}
 			}
+			// 如果已经存在自动代理创建器并且与将要创建的一致，那么无须再次创建
 			return null;
 		}
 		// 初始化bean定义，会注册名为AUTO_PROXY_CREATOR_BEAN_NAME（internalAutoProxyCreator）的bean定义
@@ -136,6 +142,7 @@ public abstract class AopConfigUtils {
 		beanDefinition.setSource(source);
 		beanDefinition.getPropertyValues().add("order", Ordered.HIGHEST_PRECEDENCE);
 		beanDefinition.setRole(BeanDefinition.ROLE_INFRASTRUCTURE);
+		// 注册，会更新一级缓存，不实例化
 		registry.registerBeanDefinition(AUTO_PROXY_CREATOR_BEAN_NAME, beanDefinition);
 		System.out.println("@Bean注册了BeanDefinition：" + AUTO_PROXY_CREATOR_BEAN_NAME);
 		return beanDefinition;

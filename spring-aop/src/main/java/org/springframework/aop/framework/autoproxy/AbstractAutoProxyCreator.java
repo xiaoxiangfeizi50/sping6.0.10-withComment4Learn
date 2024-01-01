@@ -55,6 +55,10 @@ import org.springframework.util.ClassUtils;
 import org.springframework.util.StringUtils;
 
 /**
+ * ProxyProcessorSupport的重要子类。SpringAOP中的核心类。
+ *  * 实现了SmartInstantiationAwareBeanPostProcessor、BeanFactoryAware接口。
+ *  * 自动创建代理对象的类。我们在使用AOP的时候基本上都是用的这个类来进程Bean的拦截，创建代理对象。
+ *
  * {@link org.springframework.beans.factory.config.BeanPostProcessor} implementation
  * that wraps each eligible bean with an AOP proxy, delegating to specified interceptors
  * before invoking the bean itself.
@@ -93,6 +97,11 @@ import org.springframework.util.StringUtils;
  * @see #getAdvicesAndAdvisorsForBean
  * @see BeanNameAutoProxyCreator
  * @see DefaultAdvisorAutoProxyCreator
+ *
+ * ProxyProcessorSupport的重要子类。SpringAOP中的核心类。
+ *  * 实现了SmartInstantiationAwareBeanPostProcessor、BeanFactoryAware接口。
+ *  * 自动创建代理对象的类。我们在使用AOP的时候基本上都是用的这个类来进程Bean的拦截，创建代理对象。
+ *
  */
 @SuppressWarnings("serial")
 public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
@@ -262,12 +271,19 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 		return null;
 	}
 
+	/**
+	 * 放到集合中，然后判断要不要包装，其实就是在循环依赖注入属性的时候如果有AOP代理的话，也会进行代理，然后返回
+	 * @param bean the raw bean instance
+	 * @param beanName the name of the bean
+	 * @return
+	 */
 	@Override
 	public Object getEarlyBeanReference(Object bean, String beanName) {
 		Object cacheKey = getCacheKey(bean.getClass(), beanName);
 		this.earlyProxyReferences.put(cacheKey, bean);
 		return wrapIfNecessary(bean, beanName, cacheKey);
 	}
+
 	/** aop具体实现*/
 	@Override
 	public Object postProcessBeforeInstantiation(Class<?> beanClass, String beanName) {
@@ -275,11 +291,14 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
  		Object cacheKey = getCacheKey(beanClass, beanName); // 从缓存中获取
 		// 如果是已经被代理过的，直接返回
 		if (!StringUtils.hasLength(beanName) || !this.targetSourcedBeans.contains(beanName)) {
+			//查缓存，是否有处理过了，不管是不是需要通知增强的，只要处理过了就会放里面
 			if (this.advisedBeans.containsKey(cacheKey)) {
 				return null;
 			}
-			// 注意shouldSkip有实现类，会调用到findCandidateAdvisors，事务在这里就不需要解析了直接增加到缓存，因为在@EnableTransactionManagement中直接设置了个通知advisor
+			// 注意shouldSkip()有实现类AspectJAwareAdvisorAutoProxyCreator进行重写，
+			// 会调用到 findCandidateAdvisors，事务在这里就不需要解析了直接增加到缓存，因为在@EnableTransactionManagement中直接设置了个通知advisor
 			if (isInfrastructureClass(beanClass) || shouldSkip(beanClass, beanName)) { // 判断是不是基础类（切面，通知，切点），或者是不是需要跳过的类
+				// 要跳过的直接设置FALSE
 				this.advisedBeans.put(cacheKey, Boolean.FALSE);
 				return null;
 			}
@@ -292,6 +311,7 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 				this.targetSourcedBeans.add(beanName);
 			}
 			Object[] specificInterceptors = getAdvicesAndAdvisorsForBean(beanClass, beanName, targetSource);
+			// 创建代理
 			Object proxy = createProxy(beanClass, beanName, specificInterceptors, targetSource);
 			this.proxyTypes.put(cacheKey, proxy.getClass());
 			return proxy;
@@ -308,14 +328,23 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 	/**
 	 * 标识被代理，使用配置的拦截器创建代理
 	 *
+	 * 此处是真正创建aop代理的地方，在实例化之后，初始化之后就行处理
+	 * 首先查看是否在earlyProxyReferences里存在，如果有就说明处理过了，不存在就考虑是否要包装，也就是代理
+	 *
+	 * Create a proxy with the configured interceptors if the bean is
+	 * identified as one to proxy by the subclass.
+	 *
 	 * @see #getAdvicesAndAdvisorsForBean
 	 */
 	@Override
 	public Object postProcessAfterInitialization(@Nullable Object bean, String beanName) {
 		if (bean != null) {
+			// 获取当前bean的key：如果beanName不为空，则以beanName为key，如果为FactoryBean类型，
+			// 前面还会添加&符号，如果beanName为空，则以当前bean对应的class为key
 			Object cacheKey = getCacheKey(bean.getClass(), beanName); // 从缓存中获取，早期代理引用
+			// 判断当前bean是否正在被代理，如果正在被代理则不进行封装
 			if (this.earlyProxyReferences.remove(cacheKey) != bean) {// 从缓存取出并比对
-				// 是否能解析切面创建代理，如果需要被代理，则封装指定的Bean
+				// 如果它需要被代理，则需要封装指定的bean
 				return wrapIfNecessary(bean, beanName, cacheKey);
 			}
 		}
@@ -346,6 +375,9 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 
 	/**
 	 * AOP核心方法之一，是否能解析切面创建代理
+	 *
+	 * 先判断是否已经处理过，是否需要跳过，跳过的话直接就放进advisedBeans里，表示不进行代理，如果这个bean处理过了，获取通知拦截器，然后开始进行代理
+	 *
 	 * @param bean the raw bean instance
 	 * @param beanName the name of the bean
 	 * @param cacheKey the cache key for metadata access
@@ -353,7 +385,8 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 	 */
 	protected Object wrapIfNecessary(Object bean, String beanName, Object cacheKey) {
 		// ---------------------------------解析切面
-  		if (StringUtils.hasLength(beanName) && this.targetSourcedBeans.contains(beanName)) { // 检查bean是否是被代理对象，如果是直接返回原理的对象
+		// 如果已经处理过，直接返回
+		if (StringUtils.hasLength(beanName) && this.targetSourcedBeans.contains(beanName)) { // 检查bean是否是被代理对象，如果是直接返回原理的对象
 			return bean;
 		}
 		if (Boolean.FALSE.equals(this.advisedBeans.get(cacheKey))) { // 检查缓存是否存在不需要代理的对象，存在直接返回

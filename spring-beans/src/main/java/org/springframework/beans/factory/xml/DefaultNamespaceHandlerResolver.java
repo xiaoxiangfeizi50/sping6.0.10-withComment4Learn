@@ -117,6 +117,7 @@ public class DefaultNamespaceHandlerResolver implements NamespaceHandlerResolver
 	@Nullable
 	public NamespaceHandler resolve(String namespaceUri) {
 		// 非debug模式，这里调用getHandlerMappings()方法
+		// debug模式，由toString()调用getHandlerMappings()方法。
 		Map<String, Object> handlerMappings = getHandlerMappings();
 		// 根据命名空间找对应信息
 		Object handlerOrClassName = handlerMappings.get(namespaceUri);
@@ -158,6 +159,7 @@ public class DefaultNamespaceHandlerResolver implements NamespaceHandlerResolver
 
 	/**
 	 * Load the specified NamespaceHandler mappings lazily.
+	 * debug模式，由toString()调用getHandlerMappings()方法。
 	 */
 	private Map<String, Object> getHandlerMappings() {
 		Map<String, Object> handlerMappings = this.handlerMappings;
