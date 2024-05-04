@@ -75,4 +75,7 @@ dependencies {
 	testRuntimeOnly("com.sun.xml.bind:jaxb-core")
 	testRuntimeOnly("com.sun.xml.bind:jaxb-impl")
 	testRuntimeOnly("com.sun.activation:jakarta.activation")
+	// 本地使用MVC引入tomcat
+	testImplementation("org.apache.tomcat.embed:tomcat-embed-core")
+
 }

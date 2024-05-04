@@ -146,15 +146,36 @@ public abstract class HttpServletBean extends HttpServlet implements Environment
 	 */
 	@Override
 	public final void init() throws ServletException {
-
+		/**
+		 * <sevlet>
+		 *     <init-param>
+		 *         <param-name>contextConfigLocation</param-name>
+		 *          <param-value>classpath:spring/dispatcher-servlet.xml</param-value>
+		 *     </init-param>
+		 * </sevlet>
+		 */
 		// Set bean properties from init parameters.
+		// 将<servlet>中配置的<init-param>参数封装到pvs变量中
+		// 当然，用户可以通过对 requiredProperties 参数的初始化来强制验证某些属性的必要性，
+		// 因此，在属性封装的过程中，一旦检测到 requiredProperties 中的属性没有指定初始值，就会抛出异常。
+		// 类似地：Spring的populateBean()中也有pvs的处理
 		PropertyValues pvs = new ServletConfigPropertyValues(getServletConfig(), this.requiredProperties);
 		if (!pvs.isEmpty()) {
 			try {
+				// 将当前的这个 servlet 转化为一个 BeanWrapper ，从而能够以 Spring 的方式来对 init-pararn 的值进行注入
+				// 类似地： Spring的doCreateBean()中也有 bw
+				// bw 的设计思想：门面模式
 				BeanWrapper bw = PropertyAccessorFactory.forBeanPropertyAccess(this);
 				ResourceLoader resourceLoader = new ServletContextResourceLoader(getServletContext());
+				// 注册自定义属性编辑器，一旦遇到 Resource 类型的属性，将会使用 ResourceEditor 进行解析
+				// 扩展了Spring的 ResourceEditor 【自定义扩展需要实现setAsText/setValue】
 				bw.registerCustomEditor(Resource.class, new ResourceEditor(resourceLoader, getEnvironment()));
+				// 扩展点： 空实现，留给子类实现（MVC未实现，可以用户自己定义）
+				// 模板方法，可以在子类调用，做一些初始化工作，bw代表的是DispatcherServlet
+				// Spring中哪里有这个方法？ 答：createBeanInstance()调用instantiateBean()，在调用 instantiateBean()里面有调用该方法。
 				initBeanWrapper(bw);
+				// 属性注入
+				// 以spring的方式来将pvs注入到该beanWrapper对象中,将配置的初始化值（contextConfigLocation）设置到DispatcherServlet
 				bw.setPropertyValues(pvs, true);
 			}
 			catch (BeansException ex) {
@@ -166,6 +187,8 @@ public abstract class HttpServletBean extends HttpServlet implements Environment
 		}
 
 		// Let subclasses do whatever initialization they like.
+		// 空实现，留给子类实现（由FrameworkServlet实现）
+		// 模板方法，子类初始化的入口方法，查看 FrameworkServlet#initServletBean 方法
 		initServletBean();
 	}
 
@@ -216,15 +239,21 @@ public abstract class HttpServletBean extends HttpServlet implements Environment
 		 */
 		public ServletConfigPropertyValues(ServletConfig config, Set<String> requiredProperties)
 				throws ServletException {
-
+			// 获取缺失的属性的集合
+			// 封装属性主要是对初始化的参数进行封装，也就是 <servlet> 中配置的 <init-param> 中配置的封装。
+			// 因为，用户可以通过对 requiredProperties 参数的初始化来强制验证某些属性的必要性，
+			// 所以，在属性封装的过程中，一旦检测到 requiredProperties 中的属性没有指定初始值，就会抛出异常。
 			Set<String> missingProps = (!CollectionUtils.isEmpty(requiredProperties) ?
 					new HashSet<>(requiredProperties) : null);
 
+			// 遍历servletConfig的初始化参数集合，添加到servletConfigPropertyValues中，并从missingProps移除
 			Enumeration<String> paramNames = config.getInitParameterNames();
 			while (paramNames.hasMoreElements()) {
 				String property = paramNames.nextElement();
 				Object value = config.getInitParameter(property);
+				// 添加到ServletConfigPropertyValues中
 				addPropertyValue(new PropertyValue(property, value));
+				// 从missingProps中移除
 				if (missingProps != null) {
 					missingProps.remove(property);
 				}

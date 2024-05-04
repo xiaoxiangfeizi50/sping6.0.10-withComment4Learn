@@ -31,6 +31,8 @@ import org.springframework.core.BridgeMethodResolver;
 import org.springframework.lang.Nullable;
 
 /**
+ * ProxyMethodInvocation的子类。AOP拦截的执行入口类
+ *
  * Spring's implementation of the AOP Alliance
  * {@link org.aopalliance.intercept.MethodInvocation} interface,
  * implementing the extended
@@ -163,11 +165,15 @@ public class ReflectiveMethodInvocation implements ProxyMethodInvocation, Clonea
 			return invokeJoinpoint();
 		}
 		// 责任链执行位置记录，记录索引
+		// 获取下一个要执行的拦截器，沿着定义好的interceptorOrInterceptionAdvice链进行处理
 		Object interceptorOrInterceptionAdvice =
 				this.interceptorsAndDynamicMethodMatchers.get(++this.currentInterceptorIndex);
 		// 判断是否为动态匹配拦截器
 		if (interceptorOrInterceptionAdvice instanceof InterceptorAndDynamicMethodMatcher dm) {
 			// 进行动态匹配
+			// Evaluate dynamic method matcher here: static part will already have
+			// been evaluated and found to match.
+			// 这里对拦截器进行动态匹配的判断，这里是对pointcut触发进行匹配的地方，如果和定义的pointcut匹配，那么这个advice将会得到执行
 			Class<?> targetClass = (this.targetClass != null ? this.targetClass : this.method.getDeclaringClass());
 			if (dm.matcher().matches(this.method, targetClass, this.arguments)) {
 				return dm.interceptor().invoke(this);
@@ -179,7 +185,8 @@ public class ReflectiveMethodInvocation implements ProxyMethodInvocation, Clonea
 		}
 		else {
 			// It's an interceptor, so we just invoke it: The pointcut will have
-			// 执行责任链调用
+			// 普通拦截器，直接调用拦截器，将this作为参数传递以保证当前实例中调用链的执行
+			// 【第一次执行进入exposeInvocationInterceptor.invoke()】
 			return ((MethodInterceptor) interceptorOrInterceptionAdvice).invoke(this);
 		}
 	}

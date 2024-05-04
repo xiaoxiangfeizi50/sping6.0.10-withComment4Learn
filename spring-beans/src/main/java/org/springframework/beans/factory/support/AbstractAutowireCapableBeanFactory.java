@@ -2011,7 +2011,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		}
 		// 执行初始化方法
 		try {
-			//调用初始化方法，先调用bean的InitializingBean接口方法，后调用bean的自定义初始化方法
+			//调用初始化方法，先调用bean的 InitializingBean 接口的 afterPropertiesSet 方法，后调用bean的自定义初始化方法
 			invokeInitMethods(beanName, wrappedBean, mbd);
 		}
 		catch (Throwable ex) {

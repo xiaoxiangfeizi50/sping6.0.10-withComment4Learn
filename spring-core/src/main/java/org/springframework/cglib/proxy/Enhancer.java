@@ -189,6 +189,11 @@ public class Enhancer extends AbstractClassGenerator {
 
 
 	// SPRING PATCH BEGIN
+	// JDK14开始的record关键字的使用参考：https://www.liaoxuefeng.com/wiki/1252599548343744/1331429187256353
+	// 相当于定义了一个EnhancerKey类：该类和其中的字段全是final类型的
+	// Spring5.x中EnhancerKey定义的是一个内部接口，是通过KeyFactory生成的，Spring6.x开始使用了JDK14中的record关键字
+	// 	private static final EnhancerKey KEY_FACTORY =
+	//			(EnhancerKey) KeyFactory.create(EnhancerKey.class, KeyFactory.HASH_ASM_TYPE, null);
 	private record EnhancerKey(String type,
 				List<String> interfaces,
 				WeakCacheKey<CallbackFilter> filter,
@@ -550,6 +555,10 @@ public class Enhancer extends AbstractClassGenerator {
 	private Object createHelper() {
 		preValidate();
 		// SPRING PATCH BEGIN
+		// Spirng5.x中使用KEY_FATORY.newInstance()创建key 见： KeyFactory 类
+		// 		通过newInstance方法来创建EnhancerKey对象，正常情况下，只需要new一个对象就可以调用方法了，
+		// 		但是Key_Factory是一个EnhancerKey类型，是一个内部接口，需要动态代理来实现，最终是为了调用newInstance方法
+		// 此处Spring6.x因为EnhancerKey定义为了record类型，所以可以直接new了
 		Object key = new EnhancerKey((superclass != null ? superclass.getName() : null),
 				(interfaces != null ? Arrays.asList(ReflectUtils.getNames(interfaces)) : null),
 				(filter == ALL_ZERO ? null : new WeakCacheKey<>(filter)),

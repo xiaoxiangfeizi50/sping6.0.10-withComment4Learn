@@ -19,6 +19,9 @@ package org.springframework.web.multipart;
 import jakarta.servlet.http.HttpServletRequest;
 
 /**
+ * MultipartResolver用于处理上传请求，处理方式是将普通的request包装成MultipartHttpServletRequest,可以直接调用getFile方法来获取File，
+ * 如果上传多个文件，可以调用getFileMap来处理。
+ *
  * A strategy interface for multipart file upload resolution in accordance
  * with <a href="https://www.ietf.org/rfc/rfc1867.txt">RFC 1867</a>.
  * Implementations are typically usable both within an application context

@@ -467,10 +467,12 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 	 */
 	public List<Object> getInterceptorsAndDynamicInterceptionAdvice(Method method, @Nullable Class<?> targetClass) {
 		// 缓存获取
+		// 创建一个method的缓存对象,在MethodCacheKey中实现了equals和hashcode方法同时还实现了compareTo方法
 		MethodCacheKey cacheKey = new MethodCacheKey(method);
 		List<Object> cached = this.methodCache.get(cacheKey);
-		// 缓存没有调用advisorChainFactory来进行获取过滤器链，然后增加到缓存中
+		// 先从缓存中获取,如果缓存中获取不到,则再用advisorChainFactory来进行获取过滤器链,获取之后放入到缓存中
 		if (cached == null) {
+			// 调用的是advisorChainFactory的getInterceptorsAndDynamicInterceptionAdvice方法
 			cached = this.advisorChainFactory.getInterceptorsAndDynamicInterceptionAdvice(
 					this, method, targetClass);
 			this.methodCache.put(cacheKey, cached);

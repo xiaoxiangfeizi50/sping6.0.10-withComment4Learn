@@ -91,7 +91,8 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 	 * specified at the {@code <beans/>} level; then parses the contained bean definitions.
 	 */
 	@Override
-	public void registerBeanDefinitions(Document doc, XmlReaderContext readerContext) {
+	public void
+	registerBeanDefinitions(Document doc, XmlReaderContext readerContext) {
 		this.readerContext = readerContext;
 		doRegisterBeanDefinitions(doc.getDocumentElement());
 	}
@@ -175,10 +176,10 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 			for (int i = 0; i < nl.getLength(); i++) {
 				Node node = nl.item(i);
 				if (node instanceof Element ele) {
-					//重点： 判断是否spirng-bean的默认标签，Spring默认标签的处理
+					//重点： 判断是否spring-bean的默认标签，Spring默认标签的处理
 					// 用node.getNamespaceURI()获取命名空间，跟字符串“http://www.springframework.org/schema/beans”对比，相同则认为是默认
 					if (delegate.isDefaultNamespace(ele)) {
-						//重点：对spirng-beans包默认标签的处理（一共四个标签：<import><alias><beans><Bean>标签）
+						//重点：对spring-beans包默认标签的处理（一共四个标签：<import><alias><beans><Bean>标签）
 						parseDefaultElement(ele, delegate);
 					}
 					else {

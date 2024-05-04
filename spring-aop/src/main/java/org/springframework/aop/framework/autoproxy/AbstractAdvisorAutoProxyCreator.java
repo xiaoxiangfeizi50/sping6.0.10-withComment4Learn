@@ -93,21 +93,30 @@ public abstract class AbstractAdvisorAutoProxyCreator extends AbstractAutoProxyC
 	 * @see #extendAdvisors
 	 */
 	protected List<Advisor> findEligibleAdvisors(Class<?> beanClass, String beanName) {
-		List<Advisor> candidateAdvisors = findCandidateAdvisors(); // 查找所有可用的通知，在处理事务时能获取到一个（BeanFactoryTransactionAttributeSourceAdvisor）
-		List<Advisor> eligibleAdvisors = findAdvisorsThatCanApply(candidateAdvisors, beanClass, beanName); // 通过切点表达式找到所有可用的通知（初筛和精筛）
+		// 将当前系统中所有的切面类的切面逻辑进行封装，从而得到目标Advisor
+		// 查找所有可用的通知，在处理事务时能获取到一个（BeanFactoryTransactionAttributeSourceAdvisor）
+		List<Advisor> candidateAdvisors = findCandidateAdvisors();
+		// 对获取到的所有Advisor进行判断，看其切面定义是否可以应用到当前bean，从而得到最终需要应用的Advisor
+		// 通过切点表达式找到所有可用的通知（初筛和精筛）
+		List<Advisor> eligibleAdvisors = findAdvisorsThatCanApply(candidateAdvisors, beanClass, beanName);
+		// 提供的hook方法，用于对目标Advisor进行扩展
 		extendAdvisors(eligibleAdvisors);
 		if (!eligibleAdvisors.isEmpty()) {
-			eligibleAdvisors = sortAdvisors(eligibleAdvisors); // 如果不为空则进行排序
+			// 如果不为空，则对需要代理的Advisor按照一定的规则进行排序（拓扑排序）
+			eligibleAdvisors = sortAdvisors(eligibleAdvisors);
 		}
 		return eligibleAdvisors;
 	}
 
 	/**
+	 * 调用BeanFactoryAdvisorRetrievalHelper来寻找是否有Advisor的bean定义
+	 *
 	 * Find all candidate Advisors to use in auto-proxying.
 	 * @return the List of candidate Advisors
 	 */
 	protected List<Advisor> findCandidateAdvisors() {
 		Assert.state(this.advisorRetrievalHelper != null, "No BeanFactoryAdvisorRetrievalHelper available");
+		// 获取所有的增强处理
 		return this.advisorRetrievalHelper.findAdvisorBeans();
 	}
 

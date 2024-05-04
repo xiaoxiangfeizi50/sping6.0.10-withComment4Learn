@@ -140,7 +140,7 @@ public class ClassPathXmlApplicationContext extends AbstractXmlApplicationContex
 		// 调用父类构造方法，创建一个资源解析器 PathMathingResourcePatternResolver，并进行一些变量值的初始化（如容器唯一ID）
 		// 如果有父容器(如SpringMVC)，则getEnvironment()创建/获取Spring环境变量，并合并父子容器的环境变量
 		super(parent);
-		// getEnvironment() 获取/创建Environment，并通过环境变量进行路径解析：
+		// getEnvironment() 获取/创建Environment【new StandardEnvironment()】，并通过环境变量进行路径解析：
 		//      如spring-${username}.xml解析为spring-向鹏龙.xml，支持如spring-${username}-${abc${def}}.xml的格式（递归解析${}）
 		setConfigLocations(configLocations);
 		if (refresh) {

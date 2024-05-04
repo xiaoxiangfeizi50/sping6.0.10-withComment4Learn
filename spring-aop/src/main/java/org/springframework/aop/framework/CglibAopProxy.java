@@ -678,8 +678,11 @@ class CglibAopProxy implements AopProxy, Serializable {
 			// 获取目标包装类
 			TargetSource targetSource = this.advised.getTargetSource();
 			try {
-				// exposeProxy=true，将当前代理对象设置为AopContext的当前代理对象，以便在拦截器中获取当前代理对象，方法执行完毕后会把当前代理对象恢复到原来的代理对象。把当前代理对象暴露到ThreadLocal，假如是jdk的动态代理调用本类方法，不会再次执行动态代理方法，可以通过AOPContext.currentProxy()获取到这个代理，JDK代理本类调用其他方法有必要设置这个属性，防止本类调用其他方法代理不起作用
+				// exposeProxy=true，将当前代理对象设置为AopContext的当前代理对象，以便在拦截器中获取当前代理对象，方法执行完毕后会把当前代理对象恢复到原来的代理对象。
+				// 把当前代理对象暴露到ThreadLocal，假如是jdk的动态代理调用本类方法，不会再次执行动态代理方法， 可以通过AOPContext.currentProxy()获取到这个代理，
+				// JDK代理本类调用其他方法有必要设置这个属性，防止本类调用其他方法代理不起作用
 				// 说白了就是通过AOP代理对象调用和直接调用的区别，直接调用不会执行代理方法，而AOP代理对象调用会执行代理方法
+				// exposeProxy标志着是否要执行拦截器链，如果不要执行就直接调用真实方法，需要则依次进入afterThrowing、afterReturning、after、around、before、真实方法。
 				if (this.advised.exposeProxy) {
 					// Make invocation available if necessary.
 					oldProxy = AopContext.setCurrentProxy(proxy);
@@ -688,21 +691,26 @@ class CglibAopProxy implements AopProxy, Serializable {
 				// 获取目标类
 				target = targetSource.getTarget();
 				Class<?> targetClass = (target != null ? target.getClass() : null);
-				// 获取当前方法的责任链增强方法列表
+				// 从advised中获取配置好的AOP通知, 获取当前方法的责任链增强方法列表，后续依次创建
+				// 图13 aop动态代理和拦截器 (六个对象：exposeInvocationInterceptor， afterThrowing， afterReturning，after，around，before)
+				// 此处 advised 是指 proxyFactory对象
 				List<Object> chain = this.advised.getInterceptorsAndDynamicInterceptionAdvice(method, targetClass);
 				Object retVal;
 				// Check whether we only have one InvokerInterceptor: that is,
 				// no real advice, but just reflective invocation of the target.
+				// 如果没有aop通知配置，那么直接调用target对象的调用方法
 				if (chain.isEmpty()) {
 					// We can skip creating a MethodInvocation: just invoke the target directly.
 					// Note that the final invoker must be an InvokerInterceptor, so we know
 					// it does nothing but a reflective operation on the target, and no hot
 					// swapping or fancy proxying.
 					Object[] argsToUse = AopProxyUtils.adaptArgumentsIfNecessary(method, args);
+					// 如果拦截器链为空则直接激活真实方法
 					retVal = AopUtils.invokeJoinpointUsingReflection(target, method, argsToUse);
 				}
 				else {
 					// 执行责任链增强方法
+					// 六个对象的执行顺序，靠 CglibMethodInvocation 维护和执行。通过proceed方法。
 					retVal = new CglibMethodInvocation(proxy, target, method, args, targetClass, chain, methodProxy).proceed();
 				}
 				return processReturnType(proxy, target, method, retVal);
@@ -746,12 +754,29 @@ class CglibAopProxy implements AopProxy, Serializable {
 
 			super(proxy, target, method, arguments, targetClass, interceptorsAndDynamicMethodMatchers);
 		}
-		/*cglib动态代理增强执行*/
+		/*cglib动态代理增强执行
+		* 递归：
+		* 	入口：retVal = new CglibMethodInvocation(proxy, target, method, args, targetClass, chain, methodProxy).proceed();
+		*   循环：return mi.proceed(); 此处 mi 为 this 即 CglibAopProxy ，至此开始循环。
+		*   结束：执行真正的方法逻辑，然后逐步返回。
+		*   这个过程中，在 ReflectiveMethodInvocation 中会通过下标的递增依次执行
+		* 			ExposeInvocationInterceptor        ---
+		* 			AspectJAfterThrowingAdvice         --- 执行完 mi.process()，在 catch 里面有一个 invokeAdviceMethod() 方法执行afterThrowing逻辑。
+		* 			AfterReturningAdviceInterceptor    --- 执行完 mi.process()，有一个 this.advice.afterReturning() 方法,其中有一个invokeAdviceMethod()方法执行afterReturning逻辑。
+		*  			AspectJAfterAdvice                 --- 执行完 mi.process()，有一个 invokeAdviceMethod() 方法执行after逻辑。
+		* 			AspectJAroundAdvice                --- 在这一步不会直接调用mi.process() ，会进入用户定义的around()方法，然后通过用户的pjp.process()来执行mi.process()
+		* 			MethodBeforeAdviceInterceptor      --- 这一步，先执行before，然后调用mi.process() , 到此，下标等于长度，则开始执行invokeJoinpoint()会执行fastClassInfo的invoke()来执行真正的方法逻辑。
+		*			然后逐步返回。
+		* 			上面涉及的 invokeAdviceMethod() 方法，其中会设置方法，权限，委托执行自定义的五个环绕逻辑。
+		* */
 		@Override
 		@Nullable
 		public Object proceed() throws Throwable {
 			try {
-				return super.proceed(); // 先执行父类的
+				// 此处是一个递归，会先执行父类 ReflectiveMethodInvocation 的proceed()，
+				// 然后执行MethodInterceptor.invoke(this)，即执行ExposeInvocationInterceptor的invoke();
+				// 然后执行return mi.proceed();此处 mi 为 this 即 CglibAopProxy ，至此重新执行了本方法。
+				return super.proceed(); // 先执行父类ReflectiveMethodInvocation的
 			}
 			catch (RuntimeException ex) {
 				throw ex;

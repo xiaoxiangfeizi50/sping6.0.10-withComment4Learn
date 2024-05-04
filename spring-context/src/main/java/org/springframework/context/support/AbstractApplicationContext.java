@@ -611,6 +611,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 				// Allows post-processing of the bean factory in context subclasses.
 				// 允许自定义执行后置处理器的钩子函数
 				// 子类覆盖方法做额外的处理，此处我们自己一般不做任何扩展工作，但是可以查看web中的代码，是有具体实现的（SpringMVC/SpringBoot）
+				// Spring-web模块有实现该方法，MVC会用到web模块，纯Spring用不到
 				postProcessBeanFactory(beanFactory);
 
 				StartupStep beanPostProcess = this.applicationStartup.start("spring.context.beans.post-process");
@@ -656,6 +657,8 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 				initApplicationEventMulticaster();
 
 				// 允许自定义刷新时的钩子函数
+				// Spring为空实现
+				// SpringMVC 的 Spring父容器--初始化主题资源   MVC子容器--
 				onRefresh();
 
 				// 在所有注册的bean中查找listener bean,注册到消息广播器中，并且执行早期的事件监听器
@@ -733,6 +736,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 
 		// Store pre-refresh ApplicationListeners...
 		// 判断刷新前的应用程序监听器集合是否为空，如果为空，则将监听器添加到此集合中
+		// 在SpringBoot中，执行到此处，applicationListeners是有值的，监听器不为空。单纯Spring是空的。
 		if (this.earlyApplicationListeners == null) {
 			this.earlyApplicationListeners = new LinkedHashSet<>(this.applicationListeners);
 		}
@@ -766,8 +770,8 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	 * @see #getBeanFactory()
 	 */
 	protected ConfigurableListableBeanFactory obtainFreshBeanFactory() {
-		refreshBeanFactory();
-		return getBeanFactory();
+		refreshBeanFactory();  //两个实现类：xml使用的实现类是 AbstractRefreshableApplicationContext,注解使用的是 GenericApplicationContext
+		return getBeanFactory(); // 同上
 	}
 
 	/**
@@ -976,18 +980,26 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	 * @see org.springframework.context.support.DefaultLifecycleProcessor
 	 */
 	protected void initLifecycleProcessor() {
+		//获取当前上下文的BeanFactory对象
 		ConfigurableListableBeanFactory beanFactory = getBeanFactory();
+		//如果beanFactory包含'lifecycleProcessor'的bean，忽略父工厂
 		if (beanFactory.containsLocalBean(LIFECYCLE_PROCESSOR_BEAN_NAME)) {
+			//让当前上下文引用从beanFactory中获取名为'lifecycleProcessor'的LifecycleProcessor类型的Bean对象
 			this.lifecycleProcessor =
 					beanFactory.getBean(LIFECYCLE_PROCESSOR_BEAN_NAME, LifecycleProcessor.class);
+			//如果当前日志级级别是跟踪
 			if (logger.isTraceEnabled()) {
 				logger.trace("Using LifecycleProcessor [" + this.lifecycleProcessor + "]");
 			}
 		}
 		else {
+			// 创建一个DefaultLifecycleProcessor实例
 			DefaultLifecycleProcessor defaultProcessor = new DefaultLifecycleProcessor();
+			// 为Bean实例提供所属工厂的回调函数
 			defaultProcessor.setBeanFactory(beanFactory);
+			// 让当前上下文引用defaultProcessor
 			this.lifecycleProcessor = defaultProcessor;
+			//将lifecycleProcessor与lifecycleProcessor注册到beanFactory中
 			beanFactory.registerSingleton(LIFECYCLE_PROCESSOR_BEAN_NAME, this.lifecycleProcessor);
 			if (logger.isTraceEnabled()) {
 				logger.trace("No '" + LIFECYCLE_PROCESSOR_BEAN_NAME + "' bean, using " +
@@ -1095,17 +1107,27 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	 */
 	@SuppressWarnings("deprecation")
 	protected void finishRefresh() {
-		// 清除上下文级别的资源缓存，例如扫描得到的 ASM 元数据。
+		// Clear context-level resource caches (such as ASM metadata from scanning).
+		// 清除上下文级别的资源缓存(如扫描的ASM元数据)
+		// 清空在资源加载器中的所有资源缓存
 		clearResourceCaches();
 
-		// 创建的Bean生命周期处理器（负责管理容器中所有的Bean的生命周期）
+		// Initialize lifecycle processor for this context.
+		// 初始化的Bean生命周期处理器（负责管理容器中所有的Bean的生命周期）
+		// 初始化LifecycleProcessor.如果上下文中找不到'lifecycleProcessor'的LifecycleProcessor Bean对象，
+		// 则使用DefaultLifecycleProcessor
 		initLifecycleProcessor();
 
 		// 启动Bean生命周期处理器，会调用所有实现Lifecycle的Bean的start方法
+		// Propagate refresh to lifecycle processor first.
+		// 首先将刷新传播到生命周期处理器
+		// 上下文刷新的通知，例如自动启动的组件
 		getLifecycleProcessor().onRefresh();
 
-		// 发布事件，将事件广播器发布事件到所有的监听器中
+		// Publish the final event.
+		// 发布最终事件，将事件广播器发布事件到所有的监听器中
 		// 默认事件广播器SimpleApplicationEventMulticaster
+		// 新建ContextRefreshedEvent事件对象，将其发布到所有监听器。
 		publishEvent(new ContextRefreshedEvent(this));
 	}
 

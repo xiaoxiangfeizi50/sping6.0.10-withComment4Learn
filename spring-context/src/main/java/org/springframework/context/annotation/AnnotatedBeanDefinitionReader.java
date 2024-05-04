@@ -49,11 +49,11 @@ import org.springframework.util.Assert;
 public class AnnotatedBeanDefinitionReader {
 
 	private final BeanDefinitionRegistry registry;
-
+	// 类名生成器
 	private BeanNameGenerator beanNameGenerator = AnnotationBeanNameGenerator.INSTANCE;
-
+	// scope注解解析器
 	private ScopeMetadataResolver scopeMetadataResolver = new AnnotationScopeMetadataResolver();
-
+	// 条件评估器
 	private ConditionEvaluator conditionEvaluator;
 
 
@@ -85,7 +85,7 @@ public class AnnotatedBeanDefinitionReader {
 		Assert.notNull(registry, "BeanDefinitionRegistry must not be null");
 		Assert.notNull(environment, "Environment must not be null");
 		this.registry = registry;
-		this.conditionEvaluator = new ConditionEvaluator(registry, environment, null);
+		this.conditionEvaluator = new ConditionEvaluator(registry, environment, null);// 条件计算器，即 @Conditional注解
 		AnnotationConfigUtils.registerAnnotationConfigProcessors(this.registry);
 	}
 

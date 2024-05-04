@@ -137,7 +137,7 @@ public abstract class AopConfigUtils {
 			// 如果已经存在自动代理创建器并且与将要创建的一致，那么无须再次创建
 			return null;
 		}
-		// 初始化bean定义，会注册名为AUTO_PROXY_CREATOR_BEAN_NAME（internalAutoProxyCreator）的bean定义
+		// 初始化bean定义，会注册名为 AUTO_PROXY_CREATOR_BEAN_NAME（internalAutoProxyCreator）的bean定义
 		RootBeanDefinition beanDefinition = new RootBeanDefinition(cls);
 		beanDefinition.setSource(source);
 		beanDefinition.getPropertyValues().add("order", Ordered.HIGHEST_PRECEDENCE);

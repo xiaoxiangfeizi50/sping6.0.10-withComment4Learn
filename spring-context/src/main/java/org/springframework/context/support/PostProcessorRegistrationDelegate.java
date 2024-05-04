@@ -321,7 +321,7 @@ final class PostProcessorRegistrationDelegate {
 	public static void registerBeanPostProcessors(
 			ConfigurableListableBeanFactory beanFactory, AbstractApplicationContext applicationContext) {
 
-		// 获取所有实现BeanPostProcessor 全类名(典型有：internalAutowiredAnnotationProcessor， internalCommonAnnotationProcessor，
+		// 获取所有实现 BeanPostProcessor 接口的全类名(典型有：internalAutowiredAnnotationProcessor， internalCommonAnnotationProcessor，
 		// 这两个全类名在解析自定义xml标签时候有判断是否是存在【通过Spring的自定义标签导入】，存在则创建new RootBeanDefinition(AutowiredAnnotationBeanPostProcessor.class)
 		// 类似有AutowiredAnnotationBPP、CommonAnnotationBPP、EventListenerMethodProcessor，
 		// 这几个个类均为在delegate.parseCustomElement(ele);中解析自定义标签<context:component-scan/>时候解析进来的)

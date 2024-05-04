@@ -27,6 +27,8 @@ import org.springframework.asm.Type;
 import org.springframework.cglib.core.internal.CustomizerRegistry;
 
 /**
+ * 生成class为了处理多个键的组合一起作为key，例如，1,2,3是一个组合，2,3也是一个组合，都可以作为key
+ *
  * Generates classes to handle multi-valued keys, for use in things such as Maps and Sets.
  * Code for <code>equals</code> and <code>hashCode</code> methods follow the
  * the rules laid out in <i>Effective Java</i> by Joshua Bloch.

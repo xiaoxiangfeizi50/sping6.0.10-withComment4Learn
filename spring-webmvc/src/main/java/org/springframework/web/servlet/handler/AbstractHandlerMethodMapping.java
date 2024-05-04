@@ -376,10 +376,15 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 	@Override
 	@Nullable
 	protected HandlerMethod getHandlerInternal(HttpServletRequest request) throws Exception {
+		// 获取访问的路径，一般类似于request.getServletPath()，返回不含contextPath的访问路径
 		String lookupPath = initLookupPath(request);
+		// 获得读锁
 		this.mappingRegistry.acquireReadLock();
 		try {
+			// 获取HandlerMethod作为handler对象，这里涉及到路径匹配的优先级
+			// 优先级: 精确匹配>最长路径匹配>扩展名匹配
 			HandlerMethod handlerMethod = lookupHandlerMethod(lookupPath, request);
+			// handlerMethod内部包含有bean对象，其实指的是对应的controller
 			return (handlerMethod != null ? handlerMethod.createWithResolvedBean() : null);
 		}
 		finally {

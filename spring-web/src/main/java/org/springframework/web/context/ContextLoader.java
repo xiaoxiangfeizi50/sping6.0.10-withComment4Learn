@@ -243,12 +243,14 @@ public class ContextLoader {
 	 * @see #CONFIG_LOCATION_PARAM
 	 */
 	public WebApplicationContext initWebApplicationContext(ServletContext servletContext) {
+		// 查询 servletContext 属性中是否存在WebApplicationContext.ROOT
+		// 存在则异常
 		if (servletContext.getAttribute(WebApplicationContext.ROOT_WEB_APPLICATION_CONTEXT_ATTRIBUTE) != null) {
 			throw new IllegalStateException(
 					"Cannot initialize context because there is already a root application context present - " +
 					"check whether you have multiple ContextLoader* definitions in your web.xml!");
 		}
-
+		// 日志：初始化 Spring root WebApplicationContext
 		servletContext.log("Initializing Spring root WebApplicationContext");
 		Log logger = LogFactory.getLog(ContextLoader.class);
 		if (logger.isInfoEnabled()) {
@@ -259,7 +261,9 @@ public class ContextLoader {
 		try {
 			// Store context in local instance variable, to guarantee that
 			// it is available on ServletContext shutdown.
+			// this 指 contextLoaderListener【contextLoaderListener是contextLoader的子类】【另外见：FrameworkServlet的this指DispatcherServlet】
 			if (this.context == null) {
+				// 初始化context，第一次执行的时候获取到一个root webApplicationcontext
 				this.context = createWebApplicationContext(servletContext);
 			}
 			if (this.context instanceof ConfigurableWebApplicationContext cwac && !cwac.isActive()) {
@@ -273,6 +277,7 @@ public class ContextLoader {
 				}
 				configureAndRefreshWebApplicationContext(cwac, servletContext);
 			}
+			// 将创建的context对象记录在servletContext中,至此创建并且准备好了spring容器
 			servletContext.setAttribute(WebApplicationContext.ROOT_WEB_APPLICATION_CONTEXT_ATTRIBUTE, this.context);
 
 			ClassLoader ccl = Thread.currentThread().getContextClassLoader();
@@ -280,6 +285,7 @@ public class ContextLoader {
 				currentContext = this.context;
 			}
 			else if (ccl != null) {
+				// 保存到 currentContextPerThread
 				currentContextPerThread.put(ccl, this.context);
 			}
 
@@ -310,7 +316,10 @@ public class ContextLoader {
 	 * @see ConfigurableWebApplicationContext
 	 */
 	protected WebApplicationContext createWebApplicationContext(ServletContext sc) {
+		// 获取contextClass的Class对象
 		Class<?> contextClass = determineContextClass(sc);
+		// 如果是自定义的contextClass对象，那么必须要实现ConfigurableWebApplicationContext此接口，否则无法直接运行
+		// Spring的 XmlWebApplicationContext 就实现了 ConfigurableWebApplicationContext
 		if (!ConfigurableWebApplicationContext.class.isAssignableFrom(contextClass)) {
 			throw new ApplicationContextException("Custom context class [" + contextClass.getName() +
 					"] is not of type [" + ConfigurableWebApplicationContext.class.getName() + "]");
@@ -376,21 +385,31 @@ public class ContextLoader {
 			}
 		}
 
+		// wac是root对象， sc是tomcat的门面模式--ApplicationContextFacade
 		wac.setServletContext(sc);
+		// CONFIG_LOCATION_PARAM 为<context-param></context-param> 执行后：configLocationParam 值为 "classpath:spring-config.xml"
 		String configLocationParam = sc.getInitParameter(CONFIG_LOCATION_PARAM);
 		if (configLocationParam != null) {
-			wac.setConfigLocation(configLocationParam);
+			// 似曾相识的setConfigLocation(),Spring的学习中，在 ClassPathXmlApplicationContext 的构造方法有调用 setConfigLocations() 【多个s】
+			wac.setConfigLocation(configLocationParam); // configLocationParam 值为 "classpath:spring-config.xml"
 		}
 
 		// The wac environment's #initPropertySources will be called in any case when the context
 		// is refreshed; do it eagerly here to ensure servlet property sources are in place for
 		// use in any post-processing or initialization that occurs below prior to #refresh
+		// 刷新上下文时，将调用 wac 环境的 initPropertySources(); 此处急切地执行此操作，是为确保 servlet 属性源已到位，以便在刷新之前在下面进行的任何后处理或初始化中使用
+
+		// getEnvironment() 获取/创建Environment【new StandardEnvironment()】，同ClassPathXmlApplicationContext 的构造方法
 		ConfigurableEnvironment env = wac.getEnvironment();
 		if (env instanceof ConfigurableWebEnvironment cwe) {
 			cwe.initPropertySources(sc, null);
 		}
 
+		// Spring中有 customizeBeanFactory() 以供自定义，貌似跟此方法无关系，
+		// 但是要知道 wac 是 ac 的子类，而 ac 又是 BeanFactory 的子类实现，因此此处功能和 customizeBeanFactory() 一致
+		// 此处做一些初始化工作
 		customizeContext(sc, wac);
+		// *** 众所周知的老朋友 ***
 		wac.refresh();
 	}
 

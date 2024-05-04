@@ -57,6 +57,8 @@ public class ContextLoaderListener extends ContextLoader implements ServletConte
 	}
 
 	/**
+	 * 在启动的时候由Tomcat调用
+	 *
 	 * Create a new {@code ContextLoaderListener} with the given application context. This
 	 * constructor is useful in Servlet initializers where instance-based registration of
 	 * listeners is possible through the {@link jakarta.servlet.ServletContext#addListener} API.
@@ -88,6 +90,8 @@ public class ContextLoaderListener extends ContextLoader implements ServletConte
 	 * @param context the application context to manage
 	 * @see #contextInitialized(ServletContextEvent)
 	 * @see #contextDestroyed(ServletContextEvent)
+	 *
+	 * 在启动的时候由Tomcat调用
 	 */
 	public ContextLoaderListener(WebApplicationContext context) {
 		super(context);
@@ -95,10 +99,12 @@ public class ContextLoaderListener extends ContextLoader implements ServletConte
 
 
 	/**
+	 * 初始化方法：MVC启动首先调用该方法，识别<context-param></>中定义的Spring-config.xml配置
 	 * Initialize the root web application context.
 	 */
 	@Override
 	public void contextInitialized(ServletContextEvent event) {
+		// SpringMVC创建Spring父容器，类似地：FrameworkServlet.initWebApplicationContext()创建MVC子容器【方法名一模一样】
 		initWebApplicationContext(event.getServletContext());
 	}
 
