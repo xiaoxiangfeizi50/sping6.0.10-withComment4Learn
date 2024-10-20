@@ -638,6 +638,17 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		// 没有就创建实例
 		if (instanceWrapper == null) {
 			// 根据执行bean使用对应的策略创建新的实例，如，工厂方法，构造函数主动注入、简单初始化
+			/**
+			 *  问：Spring有几种对象创建方式？
+			 * 	  答：1.自定义BPP，生成代理对象；
+			 * 		 2.通过反射
+			 * 		 3.通过factoryMethod创建对象
+			 * 		 	分 实例工厂 和 静态工厂
+			 * 		 4.通过FactoryBean创建对象
+			 * 		 	抽象出一个接口规范，所有对象必须通过getObject方法获取-----------------接口规范实现
+			 * 		 5.通过Supplier创建,调用其get()方法
+			 * 		 	用法和4有相通之处，随便定义一个创建对象的方法，不止局限于getObject------只是BeanDefinition的一个属性值
+			 */
 			/** 生成beanWrapper对象，问：1.请说出beanWrapper的作用，并说出一个使用案例，2.请说出五种bean的创建方式，以及每种方式如何实现的 */
 			instanceWrapper = createBeanInstance(beanName, mbd, args);
 			System.out.println("实例化完成：" + beanName); // 具体的实例化（反射，工厂@Bean）
@@ -655,14 +666,18 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		// Allow post-processors to modify the merged bean definition.
 		// 允许beanPostProcessor去修改合并的beanDefinition
 		/** 锁代码块里面：
-		 * 		1.InitDestroyAnnotationBeanPostProcessor： 注册@postContruct，@PreDestroy注解，
-		 * 		2.CommonAnnotationBeanPostProcessor :      以及@Resource，@EJB注解（Spring5.x也包括@WebServiceRef注解）
-		 * 		3.AutowiredAnnotationBeanPostProcessor：   以及@Autowired，@Value注解
-		 * 调用在本方法exposedObject = initializeBean(beanName, exposedObject, mbd)
-		 * 调用的1900多行：applyBeanPostProcessorsBeforeInitialization()方法
+		 * 		调用 MergedBeanDefinitionPostProcessor 回调（在这里完成相关方法的扫描及保存）:
+		 * 		这一点其实在 Spring 当中已经是非常固定的一个套路了，即 Spring 中注解的作用流程一般都是先要通过扫描，然后将对应的方法或者类进行缓存，最后在适时的时候进行调用
 		 *
-		 *   问：如果XML配置注入和注解配置注入有冲突，听谁的？还是报错？
-		 *   答：自己试一下。
+		 * 			1.InitDestroyAnnotationBeanPostProcessor： 注册@postContruct，@PreDestroy注解，
+		 * 			2.CommonAnnotationBeanPostProcessor :      以及@Resource，@EJB注解（Spring5.x也包括@WebServiceRef注解）
+		 * 			3.AutowiredAnnotationBeanPostProcessor：   以及@Autowired，@Value注解
+		 * 		调用在本方法exposedObject = initializeBean(beanName, exposedObject, mbd)
+		 * 		调用的1900多行：applyBeanPostProcessorsBeforeInitialization()方法
+		 *
+		 *
+		 *   	问：如果XML配置注入和注解配置注入有冲突，听谁的？还是报错？
+		 *   	答：自己试一下。
 		 *
 		 * */
 		synchronized (mbd.postProcessingLock) {
@@ -672,6 +687,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 					// MergedBeanDefinitionPostProcessor后置处理器修改合并bean的定义
 					// 调用applyMergedBeanDefinitionPostProcessors，来执行BeanDefinitionPostProcessor的postProcessMergedBeanDefinition
 					// 后置处理器修改bean位置
+					// aMBDPP()
 					applyMergedBeanDefinitionPostProcessors(mbd, beanType, beanName);
 				}
 				catch (Throwable ex) {
@@ -1999,12 +2015,12 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 
 		// 调用bean的后置处理器postProcessBeforeInitialization，获取代理对象
 		Object wrappedBean = bean;
-		//如果mdb不为null || mbd不是"synthetic"。一般是指只有AOP相关的prointCut配置或者Advice配置才会将 synthetic设置为true
+		// 如果mdb为null || mbd不是"synthetic"【非AOP相关配置】。一般是指只有AOP相关的prointCut配置或者Advice配置才会将 synthetic设置为true
 		if (mbd == null || !mbd.isSynthetic()) {
 			// 执行beanPostProcessorsBeforeInitialization扩展点
 			// 将BeanPostProcessors应用到给定的现有Bean实例，调用它们的postProcessBeforeInitialization初始化方法。
 			// 返回的Bean实例可能是原始Bean包装器
-			/** 在这里调用@PostConstruct和@PreDestroy注解
+			/** 在这里调用 @PostConstruct 和 @PreDestroy 注解
 			 *  注册在本类600多行：applyMergedBeanDefinitionPostProcessors()方法
 			 * */
 			wrappedBean = applyBeanPostProcessorsBeforeInitialization(wrappedBean, beanName);

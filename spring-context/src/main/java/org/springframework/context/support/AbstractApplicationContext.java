@@ -597,7 +597,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 			// 注解的容器，自己解耦合自己把自己的系统系统级别的实现@Component@Configuration@Bean@Import，也会注册到容器，用Xml方式容器直接强耦合
 			// 获取一个新的BeanFactory实例，存储容器中所有的bean定义信息，用于后面去使用
 
-			// 1.判断是否已经有BeanFactory实例(IOC)，有则销毁Bean并关闭BeanFactory，然后新建新的DefaultListableBeanFactory
+			// 1.createBeanFactory(...) 判断是否已经有BeanFactory实例(IOC)，有则销毁所有Bean【destroyBeans()】并关闭BeanFactory，然后新建新的DefaultListableBeanFactory
 			//       ignoreDependencyInterface(...Aware)
 			//       设置容器唯一ID
 			//       customizeBeanFactory(beanFactory)  空实现，可以自定义扩展，如设置是否支持循环依赖，是否支持覆盖

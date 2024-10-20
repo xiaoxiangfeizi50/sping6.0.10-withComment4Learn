@@ -107,11 +107,11 @@ public class InitDestroyAnnotationBeanPostProcessor implements DestructionAwareB
 
 	protected transient Log logger = LogFactory.getLog(getClass());
 
-	// CommonAnnotationBeanPostProcessor在初始化时向里面放置了@PostConstruct注解
+	// CommonAnnotationBeanPostProcessor 在初始化时向里面放置了@PostConstruct注解
 	@Nullable
 	private Class<? extends Annotation> initAnnotationType;
 
-	// CommonAnnotationBeanPostProcessor在初始化时向里面放置了@PreDestory注解
+	// CommonAnnotationBeanPostProcessor 在初始化时向里面放置了@PreDestory注解
 	@Nullable
 	private Class<? extends Annotation> destroyAnnotationType;
 
@@ -177,7 +177,7 @@ public class InitDestroyAnnotationBeanPostProcessor implements DestructionAwareB
 	}
 
 	private LifecycleMetadata findInjectionMetadata(RootBeanDefinition beanDefinition, Class<?> beanType) {
-		// 调用方法获取生命周期元数据并保存
+		// 调用方法获取生命周期元数据并保存(@PostConstruct 和 @PreDestory)
 		LifecycleMetadata metadata = findLifecycleMetadata(beanType);
 		// 验证相关方法
 		/** 注册到BeanDefinition，也即是：最外层锁的上面注释：允许BPP对BD进行修改的关键一步（Allow post-processors to modify the merged bean definition.） */
@@ -259,7 +259,7 @@ public class InitDestroyAnnotationBeanPostProcessor implements DestructionAwareB
 				// 加锁后再次尝试获取元数据，防止多线程重复执行
 				metadata = this.lifecycleMetadataCache.get(clazz);
 				if (metadata == null) {
-					// 构建生命周期元数据
+					// 构建生命周期元数据  @PostConstruct 和 @PreDestroy
 					metadata = buildLifecycleMetadata(clazz);
 					// 将构建好的元数据放入缓存中
 					this.lifecycleMetadataCache.put(clazz, metadata);

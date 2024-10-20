@@ -90,11 +90,35 @@ public abstract class AopNamespaceUtils {
 	}
 
 	private static void useClassProxyingIfNecessary(BeanDefinitionRegistry registry, @Nullable Element sourceElement) {
+		/**
+		 * SpringAOP部分使用JDK动态代理或者CGLIB来为目标创建代理，
+		 * 		如果被代理的目标对象实现了至少一个接口，则会使用JDK动态代理。所有该目标类型实现的接口都将被代理，
+		 * 		若该目标对象没有实现任何接口，则创建一个cglib代理
+		 */
 		if (sourceElement != null) {
-			// 对于proxy-target-class属性的处理
+			// 对于 proxy-target-class 属性的处理
 			/**
-			 * SpringAOP部分使用JDK动态代理或者CGLIB来为目标创建代理，如果被代理的目标对象实现了至少一个接口，则会使用JDK动态代理。所有该目标类型实现的接口都将被
-			 * 代理，若该目标对象没有实现任何接口，则创建一个cglib代理，
+			 *  proxy-target-class : 是否强制指定 CGLIB 代理，为 true 则强制使用 CGLIB 代理。 <aop:config proxy-target-class = "true" > ... </aop:config>
+			 *                       为false，则根据是否有实现接口自动优先JDK代理。
+			 *
+			 *
+			 * expose-proxy: 暴露代理，用于解决自调用失效问题
+			 *        自调用失效的解决：
+			 *       	不要调用内部方法时候在a()事务里直接调用b()事务
+			 *       			错误示例：this.b()
+			 *        			正确方式：
+			 *        				XML:
+			 *        					第1步：开启配置：<aop:config expose-proxy = "true" > ... </aop:config> 或 @EnableAspectJAutoProxy(exposeProxy = true)
+			 *       					第2步：((AService)AopContext.currentProxy()).b()
+			 *						注解：
+			 *							@EnableAspectJAutoProxy(exposeProxy=true)
+			 *        自调用有几种解决方案：
+			 *        		1.打开 expose-proxy 配置，使用 AopContext.currentProxy()获取 代理类 再调用 b() 方法。
+			 *        		2.@Autowire 注入当前bean，使用被注入的bean 调用 b() 方法。
+			 *        		3.编程获取当前bean（跟2类似） ：AInterface a = applicationContext.getBean(AInterface.class
+			 *        		4.编程式事务
+			 *        		5.
+			 *
 			 */
 			boolean proxyTargetClass = Boolean.parseBoolean(sourceElement.getAttribute(PROXY_TARGET_CLASS_ATTRIBUTE));
 			if (proxyTargetClass) {

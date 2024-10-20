@@ -198,6 +198,7 @@ public class SpringFactoriesLoader {
 			@Nullable FailureHandler failureHandler) {
 
 		Assert.notNull(factoryType, "'factoryType' must not be null");
+		// Spring SPI 机制
 		List<String> implementationNames = loadFactoryNames(factoryType);
 		logger.trace(LogMessage.format("Loaded [%s] names: %s", factoryType.getName(), implementationNames));
 		List<T> result = new ArrayList<>(implementationNames.size());

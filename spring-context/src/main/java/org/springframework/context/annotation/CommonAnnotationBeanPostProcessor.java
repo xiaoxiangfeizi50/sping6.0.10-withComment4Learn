@@ -67,7 +67,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.util.StringValueResolver;
 
 /**
- * 负责解析@Resource、@PostConstruct，@PreDestroy，@EJB三个注解，这三个注解都是定义再javax.*包下的注解，属于java中的注解
+ * 负责解析@Resource、@PostConstruct，@PreDestroy，@EJB四个注解，这几个注解都是定义再javax.*包下的注解，属于java中的注解
  *
  * {@link org.springframework.beans.factory.config.BeanPostProcessor} implementation
  * that supports common Java annotations out of the box, in particular the common
@@ -127,7 +127,7 @@ import org.springframework.util.StringValueResolver;
  * @see org.springframework.beans.factory.annotation.InitDestroyAnnotationBeanPostProcessor
  * @see org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor
  *
- * 负责解析@Resource、@WebServiceRef、@EJB三个注解，这三个注解都是定义再javax.*包下的注解，属于java中的注解
+ * 负责解析 @Resource、@WebServiceRef、@EJB三个注解，这三个注解都是定义再javax.*包下的注解，属于java中的注解
  *
  */
 @SuppressWarnings("serial")
@@ -177,7 +177,7 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 
 
 	/**
-	 *  构造方法，设置@PostConstruct和@PreDestory注解
+	 *  构造方法，设置 @PostConstruct 和 @PreDestory 注解
 	 *
 	 * Create a new CommonAnnotationBeanPostProcessor,
 	 * with the init and destroy annotation types set to
